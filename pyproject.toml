@@ -5,7 +5,9 @@ description = "Submission for 2025 GECCO automated design competition"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "deap>=1.4.3",
     "framspy-local-package",
+    "numpy>=2.2.6",
 ]
 
 [tool.uv.sources]
