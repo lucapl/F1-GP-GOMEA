@@ -1,0 +1,19 @@
+version = 1
+revision = 2
+requires-python = ">=3.12"
+
+[[package]]
+name = "f1-gp-gomea"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "framspy-local-package" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "framspy-local-package", editable = "framspy" }]
+
+[[package]]
+name = "framspy-local-package"
+version = "0.1"
+source = { editable = "framspy" }

@@ -4,4 +4,9 @@ version = "0.1.0"
 description = "Submission for 2025 GECCO automated design competition"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "framspy-local-package",
+]
+
+[tool.uv.sources]
+framspy-local-package = { path = "framspy", editable = true }
