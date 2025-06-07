@@ -1,0 +1,15 @@
+# Python packages with pyproject.toml and nothing else
+# https://til.simonwillison.net/python/pyproject
+
+# Files were moved to src/ so that pip auto-detects "src-layout"
+# https://setuptools.pypa.io/en/latest/userguide/package_discovery.html#src-layout
+# Alternatively, one could list all Python modules available:
+# https://setuptools.pypa.io/en/latest/userguide/package_discovery.html#finding-simple-packages
+
+[project]
+name = "framspy-local-package"
+version = "0.1"
+
+# [build-system]
+# requires = ["setuptools>=61.0"]
+# build-backend = "setuptools.build_meta"
