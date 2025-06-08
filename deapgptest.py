@@ -24,18 +24,30 @@ class NeuronType(Enum):
     Star = "*"
 
 
-def neuron(neuron_type: NeuronType, propertylist):
-    return f"[{neuron_type.value},{propertylist}]"
+def add_neuron(left:str, type:NeuronType, properties:str):
+    if left[-1] != "X" or left[-1] != "]":  #becomes an intron if not added after X or another neuron
+        return left
+    neuron = f"{left}[{type}"
+    if len(properties) == 0:
+        neuron += f",{properties}"
+    return neuron + "]"
 
-
-def neuron_connection(i:int, weight:float):
-    return f"{i}:{weight}"
+def add_neuron_connection(inside:str, i:int, weight:float):
+    return f"{inside},{i}:{weight}"
 
 
 class NeuronProperty(Enum):
-    Force = "fo"
-    Inertia = "in"
-    Sigmoid = "si"
+    N_Force = "fo"
+    N_Inertia = "in"
+    N_Sigmoid = "si"
+    Thr_Low = "lo"
+    Thr_High = "hi"
+    Thr_Threshold_Sin_Time = "t"
+    Sin_Frequency = "f0"
+
+
+allowed_properties = {property.value: [n for n in NeuronType if n in property.name.split("_")] for property in NeuronProperty}
+print(allowed_properties)
 
 
 class ModifierUpper(Enum):
@@ -71,17 +83,22 @@ class ModifierLower(Enum):
 
     #e = auto()  # Energy (experimental)
 
-def neuron_property(prop:NeuronProperty, weight:float):
-    return f"{prop.value}:{weight}"
-    
+
+def add_neuron_property(inside:str, prop:NeuronProperty, value:float):
+    neuron_type = inside.split(",")[0]
+    if ":" in neuron_type:
+        neuron_type = "N"
+    if neuron_type not in allowed_properties[prop.value]:  # become intron if property not allowed
+        return inside
+    return f"{inside},{prop.value}:{value}"
 
 
 pset = gp.PrimitiveSetTyped("f1", [], str)
-pset.addPrimitive(neuron_connection, [int, float], str, "neuroncon")
-pset.addPrimitive(neuron_property, [NeuronProperty, float], str, "neuronprop")
-pset.addPrimitive(neuron, [NeuronType, str], str, "neuron")
-pset.addPrimitive(partial(concat,set=","), [str, str], str,"com")
-pset.addPrimitive(partial(concat,set=""), [str, str], str,"concat")
+pset.addPrimitive(add_neuron_connection, [str, int, float], str, "add_n_con")
+pset.addPrimitive(add_neuron_property, [str, NeuronProperty, float], str, "add_n_prop")
+pset.addPrimitive(add_neuron, [str, NeuronType, str], str, "add_n")
+pset.addPrimitive(partial(concat, sep=","), [str, str], str, "comma")
+pset.addPrimitive(partial(concat, sep=""), [str, str], str, "concat")
 pset.addPrimitive(branch, [str, str], "branch")
 pset.addEphemeralConstant("nint", lambda: random.randint(-20,20), int)
 pset.addEphemeralConstant("nfloat", lambda: random.uniform(-10.0,10.0), float)
@@ -95,14 +112,14 @@ for m in ModifierLower:
     pset.addTerminal(m.name, str)
 # pset.addEphemeralConstant("npt", lambda: random.choice(list(NeuronProperty)), NeuronProperty)
 # pset.addEphemeralConstant("nt", lambda: random.choice(list(NeuronType)), NeuronType)
-pset.addTerminal("", str,name="empty")
-pset.addTerminal("X", str,name="X")
-pset.addTerminal(0, int,name="zero")
+pset.addTerminal("", str, name="empty")
+pset.addTerminal("X", str, name="X")
+pset.addTerminal(0, int, name="zero")
 
 creator.create("Individual", gp.PrimitiveTree)
 
 
-def generateF1Frams(pset,min_=1,max_=5,pneuron=0.2,pbranch=0.3,parm=0.4,px=0.7,pmod=0.4):
+def generate_F1_Frams(pset,min_=1,max_=5,pneuron=0.2,pbranch=0.3,parm=0.4,px=0.7,pmod=0.4):
     # TODO https://www.framsticks.com/a/al_geno_f1.html
     # connections between neurons need to be fixed later as they are relative to each other
     neurons = []
@@ -110,6 +127,10 @@ def generateF1Frams(pset,min_=1,max_=5,pneuron=0.2,pbranch=0.3,parm=0.4,px=0.7,p
 
     def genbranch():
         ...
+
+
+    
+
 
 toolbox = base.Toolbox()
 toolbox.register("expr", generateF1Frams, pset=pset, min_=1, max_=10)
