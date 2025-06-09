@@ -200,7 +200,7 @@ toolbox.register("parse", parse, pset=pset)
 parsed = toolbox.parse("(cccXX[0:2,1:5.0,fo:3,2:-4.3]XX[*][Thr,lo:2](X,,,,(X,X,XX(X))))")
 fram = gp.PrimitiveTree(parsed)
 
-print(list(fram))
+print(list(map(lambda s: s.name,fram)))
 print(gp.compile(fram, pset))
 
 nodes, edges, labels = gp.graph(fram)

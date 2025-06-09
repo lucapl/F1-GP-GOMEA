@@ -37,7 +37,7 @@ class CommonLinkageModel(LinkageModel):
 
     def __len__(self):
         return len(self.linkage_model)
-    
+
     def __getitem__(self, donor):
         '''
         here donor is only passed to work with other linkage models, the positional linkage is random and the same for the whole pop
@@ -88,9 +88,9 @@ class LinkageTree(CommonLinkageModel):
         dissim_matrix = 1 - (simil_matrix / max_sim)
         return dissim_matrix[np.triu_indices_from(dissim_matrix, k=1)]
 
-    def _convert_linkage_to_fos(self, Z, prefix=0):
+    def _convert_linkage_to_fos(self, Z):
         n_points = len(Z) + 1
-        clusters = self._create_univariate(n_points,prefix)
+        clusters = self._create_univariate(n_points)
 
         for cluster_i, cluster_j, distance, observations in Z:
             cluster_i = clusters[int(cluster_i)]
@@ -100,39 +100,39 @@ class LinkageTree(CommonLinkageModel):
 
         return clusters
 
-    def _hierarchihal_clustering(self, prefix_len=0):
+    def _hierarchihal_clustering(self):
         condensed_distance_matrix = self._get_condensed_distance_matrix()
         if condensed_distance_matrix is None:
             self.Z = np.array([])
-            return self._create_univariate(self.n, prefix_len)
+            return self._create_univariate(self.n)
         self.Z = scipy_hier.linkage(condensed_distance_matrix, method='average')
-        return self._convert_linkage_to_fos(self.Z, prefix_len)[:-1]
+        return self._convert_linkage_to_fos(self.Z)[:-1]
 
-    def _create_univariate(self, n, prefix=0):
-        return [(i+prefix,) for i in range(n)]
+    def _create_univariate(self, n):
+        return [(i,) for i in range(n)]
 
     def _create_linkage_tree(self):
         self._calculate_dependencies()
         return self._hierarchihal_clustering()
 
 
-class LinkageTreeFramsF9(LinkageTree):
-    def __init__(self, population, prefix_len, original_control_word):
-        self.prefix_len = prefix_len
+class LinkageTreeFramsF1(LinkageTree):
+    def __init__(self, population: list[deap.gp.PrimitiveTree], original_control_word):
         self.original_control_word = original_control_word
         if self.original_control_word != None:
             restore_fenv(original_control_word)
         super().__init__(population)
 
     def _hierarchihal_clustering(self):
-        longest_geno = max(self.population, key=lambda ind: len(ind[0]))
-        geno_len = len(longest_geno[0])-self.prefix_len
+        longest_geno = max(self.population, key=lambda ind: len(ind))
+        geno_len = len(longest_geno)
         self.n = geno_len
-        return super()._hierarchihal_clustering(self.prefix_len)
+        return super()._hierarchihal_clustering()
 
-    def _calculate_dependencies(self):
-        longest_len = len(max(self.population, key=lambda ind: len(ind)))-self.prefix_len
-        padded = [list(ind[0][self.prefix_len:].ljust(longest_len, '_')) for ind in self.population]
+    def _calculate_dependencies(self, pad_token="_"):
+        #longest_len = len(max(self.population, key=lambda ind: len(ind)))
+        mapped = [list(map(lambda s: s.name,ind)) for ind in self.population]
+        padded = list(zip(itertools.zip_longest(*mapped, fillvalue=pad_token)))#[list(ind[0].ljust(longest_len, '_')) for ind in self.population]
         genos_array = np.array(padded)
         total = len(self.population)
         single_counts = {i: Counter(genos_array[:, i]) for i in range(genos_array.shape[1])}
