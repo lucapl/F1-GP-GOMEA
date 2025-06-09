@@ -2,18 +2,27 @@ from deap import gp, base, creator, tools
 from functools import partial
 from enum import Enum, auto
 import random
+import re
 from networkx.drawing.nx_agraph import graphviz_layout
+import matplotlib.pyplot as plt
+import networkx as nx
 
 
-def concat(str1, str2, sep):
-    return str(str1)+sep+str(str2)
+class AutoName(Enum):
+    @staticmethod
+    def _generate_next_value_(name, start, count, last_values):
+        return name
 
 
-def branch(left, right):
-    return f"{left}({right})"
+def concat(right, left, sep):
+    return str(left)+sep+str(right)
 
 
-class NeuronType(Enum):
+def branch(inside):
+    return f"({inside})"
+
+
+class NeuronType(AutoName):
     N = auto()
     Nu = auto()
     D = auto()
@@ -24,16 +33,12 @@ class NeuronType(Enum):
     Star = "*"
 
 
-def add_neuron(left:str, type:NeuronType, properties:str):
-    if left[-1] != "X" or left[-1] != "]":  #becomes an intron if not added after X or another neuron
-        return left
-    neuron = f"{left}[{type}"
-    if len(properties) == 0:
-        neuron += f",{properties}"
-    return neuron + "]"
+def add_neuron(type: NeuronType, properties: str, next_: str):
+    return f"[{type.value}{properties}]" + next_
 
-def add_neuron_connection(inside:str, i:int, weight:float):
-    return f"{inside},{i}:{weight}"
+
+def add_neuron_connection(i: int, weight: float, next_: str):
+    return f",{i}:{weight}{next_}"
 
 
 class NeuronProperty(Enum):
@@ -47,10 +52,9 @@ class NeuronProperty(Enum):
 
 
 allowed_properties = {property.value: [n for n in NeuronType if n in property.name.split("_")] for property in NeuronProperty}
-print(allowed_properties)
 
 
-class ModifierUpper(Enum):
+class ModifierUpper(AutoName):
     R = auto()  # Rotation (by 45 degrees) – does NOT affect further sticks
     Q = auto()  # Twist
     C = auto()  # Curvedness
@@ -67,7 +71,7 @@ class ModifierUpper(Enum):
     #E = auto()  # Energy (experimental; modifies starting energy)
 
 
-class ModifierLower(Enum):
+class ModifierLower(AutoName):
     r = auto()  # Rotation (by 45 degrees) – lowercase variant
     q = auto()  # Twist
     c = auto()  # Curvedness
@@ -84,37 +88,30 @@ class ModifierLower(Enum):
     #e = auto()  # Energy (experimental)
 
 
-def add_neuron_property(inside:str, prop:NeuronProperty, value:float):
-    neuron_type = inside.split(",")[0]
-    if ":" in neuron_type:
-        neuron_type = "N"
-    if neuron_type not in allowed_properties[prop.value]:  # become intron if property not allowed
-        return inside
-    return f"{inside},{prop.value}:{value}"
+def add_neuron_property(prop: NeuronProperty, value: float, next_: str):
+    return f",{prop.value}:{value}{next_}"
 
 
 pset = gp.PrimitiveSetTyped("f1", [], str)
-pset.addPrimitive(add_neuron_connection, [str, int, float], str, "add_n_con")
-pset.addPrimitive(add_neuron_property, [str, NeuronProperty, float], str, "add_n_prop")
-pset.addPrimitive(add_neuron, [str, NeuronType, str], str, "add_n")
+pset.addPrimitive(add_neuron_connection, [int, float, str], str, "conn")
+pset.addPrimitive(add_neuron_property, [NeuronProperty, float, str], str, "prop")
+pset.addPrimitive(add_neuron, [NeuronType, str, str], str, "neuron")
 pset.addPrimitive(partial(concat, sep=","), [str, str], str, "comma")
-pset.addPrimitive(partial(concat, sep=""), [str, str], str, "concat")
-pset.addPrimitive(branch, [str, str], "branch")
-pset.addEphemeralConstant("nint", lambda: random.randint(-20,20), int)
-pset.addEphemeralConstant("nfloat", lambda: random.uniform(-10.0,10.0), float)
+pset.addPrimitive(branch, [str], str, "branch")
+pset.addEphemeralConstant("nint", lambda: random.randint(-20, 20), int)
+pset.addEphemeralConstant("nfloat", lambda: random.uniform(-10.0, 10.0), float)
 for nt in NeuronType:
-    pset.addTerminal(nt, NeuronType)
+    pset.addTerminal(nt, NeuronType, name=nt.name)
 for np in NeuronProperty:
-    pset.addTerminal(np, NeuronProperty)
-for m in ModifierUpper:
-    pset.addTerminal(m.name, str)
-for m in ModifierLower:
-    pset.addTerminal(m.name, str)
+    pset.addTerminal(np, NeuronProperty, name=np.value)
+for m in list(ModifierUpper) + list(ModifierLower):
+    pset.addPrimitive(partial(concat, left=m.value, sep=""), [str], str, m.name)
 # pset.addEphemeralConstant("npt", lambda: random.choice(list(NeuronProperty)), NeuronProperty)
 # pset.addEphemeralConstant("nt", lambda: random.choice(list(NeuronType)), NeuronType)
-pset.addTerminal("", str, name="empty")
-pset.addTerminal("X", str, name="X")
-pset.addTerminal(0, int, name="zero")
+pset.addTerminal("", str, name="end")
+pset.addPrimitive(partial(concat, left="X", sep=""), [str], str, "X")
+
+print(partial(concat, left="X", sep="")("test"))
 
 creator.create("Individual", gp.PrimitiveTree)
 
@@ -128,21 +125,83 @@ def generate_F1_Frams(pset,min_=1,max_=5,pneuron=0.2,pbranch=0.3,parm=0.4,px=0.7
     def genbranch():
         ...
 
+def simple_parser(geno:str, in_paranthesis=False):
+    if len(geno) == 0:
+        return ["end"]
+    if in_paranthesis:
+        depth = 0
+        j = -1
+        for i, c in enumerate(geno):
+            if c == "(" or c == "[":
+                depth += 1
+            if c == ")" or c == "]":
+                depth -= 1
+            if c == "," and depth == 0:
+                j = i
+                break
+        if j != -1:
+            return ["comma"] + simple_parser(geno[j+1:],True) + simple_parser(geno[:j])
+    this = geno[0]
+    if this == "(":
+        return ["branch"] + simple_parser(geno[1:-1],True)
 
+    if this == "[": #handle
+        #match = re.search(r'\[[^\[\]]*?\](?!\[)', geno)
+        i = geno.find("]")
+        type, proplist = parse_neuron(geno[1:i])
+        return ["neuron"] + [type] + proplist + simple_parser(geno[i+1:])
+    return [this] + simple_parser(geno[1:])
+
+
+def parse_neuron(neuron_inside: str | list[str], is_first=True):
+    if len(neuron_inside) == 0:
+        return ["end"]
+    if isinstance(neuron_inside, str):
+        neuron_inside = neuron_inside.split(",")
+    neuron_type = None
+    i = 0
+    if ":" not in neuron_inside[0]:
+        neuron_type = neuron_inside[0]
+        i = 1
+    if is_first:
+        neuron_type = "N" if not neuron_type else neuron_type
+        if neuron_type == "*":
+            neuron_type = "Star"
+        return neuron_type, parse_neuron(neuron_inside[i:], is_first=False)
     
+    first, second = neuron_inside[0].split(":")
+    if re.match(r'^-?\d+$', first):
+        thing = ["conn", int(first), float(second)]
+    else:
+        thing = ["prop", first, float(second)]
+
+    return thing + parse_neuron(neuron_inside[1:], is_first=False)
+
+
+def parse(geno:str, pset):
+    nodes = {prim.name: prim for prim in pset.primitives[str] + pset.terminals[str] + pset.terminals[NeuronProperty] + pset.terminals[NeuronType]}
+    #print(pset.primitives)
+    parsed = simple_parser(geno)
+    print(parsed)
+    def map_to(symbol):
+        if isinstance(symbol, int):
+            return gp.MetaEphemeral("nint", partial(lambda s: s, symbol))()
+        elif isinstance(symbol, float):
+            return gp.MetaEphemeral("nfloat", partial(lambda s: s, symbol))()
+        return nodes[symbol]
+
+    return [map_to(symbol) for symbol in parsed]
 
 
 toolbox = base.Toolbox()
-toolbox.register("expr", generateF1Frams, pset=pset, min_=1, max_=10)
-toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.expr)
+toolbox.register("parse", parse, pset=pset)
+#toolbox.register("individual_parse", partial(creator.Individual,  ), toolbox.parse)
 
-fram = toolbox.individual()
+parsed = toolbox.parse("(cccXX[0:2,1:5.0,fo:3,2:-4.3]XX[*][Thr,lo:2](X,,,,(X,X,XX(X))))")
+fram = gp.PrimitiveTree(parsed)
 
 print(list(fram))
-print(gp.compile(fram,pset))
-
-import matplotlib.pyplot as plt
-import networkx as nx
+print(gp.compile(fram, pset))
 
 nodes, edges, labels = gp.graph(fram)
 g = nx.Graph()
