@@ -2,7 +2,6 @@ import numpy as np
 import random
 import math
 import itertools
-import deap
 
 from collections import Counter
 from scipy.stats import spearmanr, pearsonr, entropy
@@ -10,7 +9,6 @@ import scipy.cluster.hierarchy as scipy_hier
 
 from src.utils.fpcontrol import restore_fenv
 from src.stats import spearman_cor, pearson_cor, calculate_entropy_list, calc_entropy
-from src.ngram_linkage_funcs import seperate_word, pair_override
 
 
 class LinkageModel():
@@ -117,7 +115,7 @@ class LinkageTree(CommonLinkageModel):
 
 
 class LinkageTreeFramsF1(LinkageTree):
-    def __init__(self, population: list[deap.gp.PrimitiveTree], original_control_word):
+    def __init__(self, population: list, original_control_word):
         self.original_control_word = original_control_word
         if self.original_control_word != None:
             restore_fenv(original_control_word)
@@ -131,13 +129,13 @@ class LinkageTreeFramsF1(LinkageTree):
 
     def _calculate_dependencies(self, pad_token="_"):
         #longest_len = len(max(self.population, key=lambda ind: len(ind)))
-        mapped = [list(map(lambda s: s.name,ind)) for ind in self.population]
-        padded = list(zip(itertools.zip_longest(*mapped, fillvalue=pad_token)))#[list(ind[0].ljust(longest_len, '_')) for ind in self.population]
+        mapped = [list(map(lambda s: s.name, ind)) for ind in self.population]
+        padded = list(zip(*itertools.zip_longest(*mapped, fillvalue=pad_token)))#[list(ind[0].ljust(longest_len, '_')) for ind in self.population]
         genos_array = np.array(padded)
         total = len(self.population)
-        single_counts = {i: Counter(genos_array[:, i]) for i in range(genos_array.shape[1])}
+        single_counts = {i: Counter(genos_array[:, i][genos_array[:, i]!=pad_token]) for i in range(genos_array.shape[1])}
         pair_counts = {
-            (i, j): Counter(zip(genos_array[:, i], genos_array[:, j]))
+            (i, j): Counter(zip(genos_array[:, i][genos_array[:, i]!=pad_token], genos_array[:, j][genos_array[:, j]!=pad_token]))
             for i in range(genos_array.shape[1]) for j in range(i + 1, genos_array.shape[1])
         }
         self.positional_entropies = {i: calculate_entropy_list(list(count.values()), total) for i, count in single_counts.items()}
