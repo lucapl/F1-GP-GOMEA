@@ -18,7 +18,7 @@ class FramsticksLibCompetition(FramsticksLib):
 	See also: https://www.framsticks.com/gecco-competition
 	"""
 
-	COMPETITOR_ID = 'AliceTeam'
+	COMPETITOR_ID = 'PPGOMEA'
 	SIMPLE_FITNESS_FORMAT = True  # set to False only if you want compatibility with existing sources of optimization algorithms such as FramsticksEvolution.py. Otherwise (for True), you will just get a simple number as fitness.
 	FITNESS_DICT_KEY = 'COGpath'  # only used for SIMPLE_FITNESS_FORMAT = False
 
@@ -33,6 +33,8 @@ class FramsticksLibCompetition(FramsticksLib):
 	_evaluation_time = 0  # used to exclude solution evaluation time from the total running time
 	_time0 = perf_counter()
 
+	def get_evals(self):
+		return self._evaluation_count
 
 	def _evaluate_path(self, path):
 		path = np.array(path)

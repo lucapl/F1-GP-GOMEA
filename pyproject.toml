@@ -8,6 +8,8 @@ dependencies = [
     "deap>=1.4.3",
     "framspy-local-package",
     "numpy>=2.2.6",
+    "ipykernel>=6.29.5",
+    "scipy>=1.15.3"
 ]
 
 [tool.uv.sources]
