@@ -2,6 +2,7 @@ import os, sys
 import json
 import math
 import argparse
+from functools import partial
 from pathlib import Path
 
 from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
@@ -16,28 +17,23 @@ from src.gpf1 import create_f1_pset, parse
 
 from src.stats import calc_uniqueness, calc_gene_diversity, calc_entropy
 
-from src.utils.stopping import EarlyStopper
+from src.utils.stopping import earlyStoppingOrMaxIter, EarlyStopper
 from src.utils.encoding import logbook_encoder, NpEncoder
 from src.utils.fpcontrol import *
 
 def prepare_gomea_parser(parser):
-    #parser.add_argument('-l', '--linkage', required=True, choices=linkage_choices)
     parser.add_argument('-n', '--ngen', default=15, type=int)
     parser.add_argument('-p', '--popsize', default=20, type=int)
     parser.add_argument('-e', '--early_stop', default=10, type=int)
-    parser.add_argument('-g', '--geno_length', default=100, type=int)
-    #parser.add_argument('--enforce_geno_len', action='store_true')
-    #parser.add_argument('--save_evaluator', action='store_true')
-    parser.add_argument('--hof_size', default=1, type=int)
-    #parser.add_argument('-f', '--checkpoint_frequency', default=10, type=int)
-    #parser.add_argument('-C', '--checkpoint') # checkpoint to load
+    parser.add_argument('-g', '--initial_geno_mutations', default=100, type=int)
     parser.add_argument('-v', '--verbose', action='store_true')
-    #parser.add_argument('-M', '--multithread', action='store_true')
-    #parser.add_argument('-O', '--output', default='./out/')
-    #parser.add_argument('-T', '--test_eval', action='store_true')
+    parser.add_argument('--sims',
+                        nargs='+',
+                        default=['eval-allcriteria.sim', 'deterministic.sim', 'recording-body-coords.sim'],
+                        help='List of simulation files to use.')
     parser.add_argument('--no_forced_improv', action='store_true')
-    parser.add_argument('--framspy', default="./framspy")
-    parser.add_argument('--framslib', default="./Framsticks52")
+    parser.add_argument('--framspy', help="Specifies location of framspy/simfiles.", default="./framspy")
+    parser.add_argument('--framslib', help="Specifies location of framstick engine.", default="./Framsticks52")
 
     return parser
 
@@ -110,16 +106,16 @@ if __name__ == '__main__':
     toolbox = base.Toolbox()
     early_stopper = EarlyStopper(args.early_stop, toolbox)
     # basic operators
-    toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, n=args.geno_length)
+    toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, n=args.initial_geno_mutations)
     toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.random_individual)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual, args.popsize)
 
     # evaluation for testing
-    max_len = args.geno_length
+    max_len = args.initial_geno_mutations
     toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria="distance")
 
     # early stopper or max itera
-    toolbox.register("should_stop", lambda p,g: g==10)
+    toolbox.register("should_stop", partial(earlyStoppingOrMaxIter, max_gen=args.ngen, early_stopper=EarlyStopper(args.early_stop, toolbox)))
 
     # gomea operators
     isForcedImprov = not args.no_forced_improv
@@ -152,31 +148,15 @@ if __name__ == '__main__':
 
     mstats = tools.MultiStatistics(fitness=stats_fit, genotype_length=stats_geno_len)
 
-    # if args.checkpoint and args.output == 'same':
-    #     args.output = os.path.dirname(args.checkpoint)
-
     #####################
     # population initialization
-    # or loading from checkpoint
     #####################
-    # if args.checkpoint:
-    #     pop, start_gen, hof, logbook = load_checkpoint(args.checkpoint)
-    # else:
-    #     # hof
-    hof = tools.HallOfFame(args.hof_size)
+    hof = None
     logbook = None
     start_gen = 0
 
-    pop = toolbox.population()#[toolbox.individual() for _ in range(args.popsize)]
-    #ind = creator.Individual([toolbox.random_individual()])
-    #print(ind)
-    #print(gp.compile(ind, pset))
-    #print(pop)
+    pop = toolbox.population()
 
-    # args.output = Path(args.output)
-    # checkpoints_out = (args.output/'checkpoint_{gen}.pkl')
-
-    # os.makedirs(args.output, exist_ok=True)
     ########################
     # MAIN ALGORITHM
     ########################
@@ -189,14 +169,7 @@ if __name__ == '__main__':
     # checkpoint_name=checkpoints_out,
     verbose=args.verbose)
 
-    framsLib.end()
     #######################
     # saving outputs
     #######################
-    # with open(args.output/"logbook.json", 'w') as file:
-    #     json.dump(logbook_encoder(logbook), file, cls=NpEncoder)
-
-    # with open(args.output/"final_pop.json", 'w') as file:
-    #     json.dump(new_pop, file)
-
-    # save_genotypes(args.output/"hof.sim", ['distance'], hof)
+    framsLib.end()
