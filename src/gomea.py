@@ -1,7 +1,8 @@
-from deap import creator, base, tools
+from deap import creator, gp, base, tools
 import pickle
 import numpy as np
 import random
+import itertools
 from src.linkage import LinkageModel
 
 
@@ -34,12 +35,11 @@ def eaGOMEA(
     - evaluate
     - build_linkage_model
     - should_stop - main loop stopping condition
-    - get_evaluations - counts fitness function calls
     """
     # stats for observation
     if not logbook:
         logbook = tools.Logbook()
-    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+    logbook.header = ['gen'] + (stats.fields if stats else [])
 
     # evaluate not evaluated individuals
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
@@ -157,11 +157,11 @@ def forced_improvement(improving_ind, linkage_model, donor, toolbox):
         if f_i is None:
             continue
 
-        # apply and evaluate
-        improving_ind = toolbox.override_nodes(improving_ind, donor, f_i)
-
         if improving_ind == donor:
             continue
+
+        # apply and evaluate
+        improving_ind = toolbox.override_nodes(improving_ind, donor, f_i)
 
         o_fitness = toolbox.evaluate(improving_ind)
         improving_ind.fitness.values = o_fitness
@@ -175,11 +175,10 @@ def forced_improvement(improving_ind, linkage_model, donor, toolbox):
     return toolbox.clone(donor) # if nothing found, replaced with the best
 
 
-def override_nodes(recipient: list[str], donor: list[str], f_i: tuple[int]):
-    # this only works on same length genotypes
-    recipient_geno = list(recipient[0])
-    donor_geno = list(donor[0])
-    for i in f_i:
-        recipient_geno[i] = donor_geno[i]
-    recipient[0] = ''.join(recipient_geno)
-    return recipient
+def override_nodes(recipient: list, donor: list, f_i: tuple[int], fillvalue="_"):
+    geno = [di if i in f_i else ri for i,(ri,di) in enumerate(itertools.zip_longest(recipient, donor, fillvalue=fillvalue))]
+    geno = [i for i in geno if i != fillvalue]
+    ind = creator.Individual(geno)
+    ind.fitness.values = recipient.fitness.values
+    return ind
+

@@ -60,7 +60,7 @@ evaluation #3, instances=2: we append [7,8,9] to [1,2,3],[4,5,6]
 // http://www.framsticks.com/files/classdoc/c_creature.html
 function record(cr)
 {
-	const STORE_ALL_PART_COORDS = 1; //set to 0 to significantly reduce the amount of data recorded (will only record COG, not all Parts)
+	const STORE_ALL_PART_COORDS = 0; //set to 0 to significantly reduce the amount of data recorded (will only record COG, not all Parts)
 	if (cr.perf_measuring == 1) //record body position only when the creature is in the "performance measuring" period
 	{
 		var cog = cr.centerOfGravity.toVector; // toVector yields [centerOfGravity.x, centerOfGravity.y, centerOfGravityg.z]

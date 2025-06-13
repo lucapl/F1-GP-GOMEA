@@ -1,7 +1,8 @@
 from deap import gp
+import re
 import random
 from functools import partial
-from enum import Enum
+from enum import Enum, auto
 
 
 def simple_parser(geno: str, in_paranthesis=False):
@@ -28,8 +29,11 @@ def simple_parser(geno: str, in_paranthesis=False):
         #match = re.search(r'\[[^\[\]]*?\](?!\[)', geno)
         i = geno.find("]")
         type, proplist = parse_neuron(geno[1:i])
-        return ["neuron"] + [type] + proplist + simple_parser(geno[i+1:])
+        return ["neuron"] + ["nt"+type] + proplist + simple_parser(geno[i+1:])
     return [this] + simple_parser(geno[1:])
+
+
+special_neurons = {"@": "Twist", "|": "Hinge", "*": "Star"}
 
 
 def parse_neuron(neuron_inside: str | list[str], is_first=True):
@@ -44,8 +48,7 @@ def parse_neuron(neuron_inside: str | list[str], is_first=True):
         i = 1
     if is_first:
         neuron_type = "N" if not neuron_type else neuron_type
-        if neuron_type == "*":
-            neuron_type = "Star"
+        neuron_type = special_neurons.get(neuron_type, neuron_type)
         return neuron_type, parse_neuron(neuron_inside[i:], is_first=False)
 
     first, second = neuron_inside[0].split(":")
@@ -61,7 +64,7 @@ def parse(geno:str, pset):
     nodes = {prim.name: prim for prim in pset.primitives[str] + pset.terminals[str] + pset.terminals[NeuronProperty] + pset.terminals[NeuronType]}
     #print(pset.primitives)
     parsed = simple_parser(geno)
-    print(parsed)
+    #print(parsed)
     def map_to(symbol):
         if isinstance(symbol, int):
             return gp.MetaEphemeral("nint", partial(lambda s: s, symbol))()
@@ -69,6 +72,7 @@ def parse(geno:str, pset):
             return gp.MetaEphemeral("nfloat", partial(lambda s: s, symbol))()
         return nodes[symbol]
 
+    #print(geno)
     return [map_to(symbol) for symbol in parsed]
 
 
@@ -87,6 +91,13 @@ class NeuronType(AutoName):
     Sin = auto()
     Fuzzy = auto()
     Star = "*"
+    Twist = "@"
+    Hinge = "|"
+    Gpart = auto()
+    S = auto()
+    T = auto()
+    G = auto()
+
 
 class NeuronProperty(Enum):
     N_Force = "fo"
@@ -96,6 +107,9 @@ class NeuronProperty(Enum):
     Thr_High = "hi"
     Thr_Threshold_Sin_Time = "t"
     Sin_Frequency = "f0"
+    Gpart_ry = "ry"
+    Gpart_rz = "rz"
+    Twist_p = "p"
 
 
 class ModifierUpper(AutoName):
@@ -162,7 +176,7 @@ def create_f1_pset():
     pset.addEphemeralConstant("nint", lambda: random.randint(-20, 20), int)
     pset.addEphemeralConstant("nfloat", lambda: random.uniform(-10.0, 10.0), float)
     for nt in NeuronType:
-        pset.addTerminal(nt, NeuronType, name=nt.name)
+        pset.addTerminal(nt, NeuronType, name="nt"+nt.name)
     for np in NeuronProperty:
         pset.addTerminal(np, NeuronProperty, name=np.value)
     for m in list(ModifierUpper) + list(ModifierLower):

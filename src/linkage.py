@@ -50,7 +50,7 @@ class CommonLinkageModel(LinkageModel):
 
 
 def univariate_linkage(population: list):
-    max_ = max(map(lambda ind: len(ind[0]), population))
+    max_ = max(map(lambda ind: len(ind), population))
     return [(i,) for i in range(max_)]
 
 
@@ -115,7 +115,7 @@ class LinkageTree(CommonLinkageModel):
 
 
 class LinkageTreeFramsF1(LinkageTree):
-    def __init__(self, population: list, original_control_word):
+    def __init__(self, population: list, original_control_word=None):
         self.original_control_word = original_control_word
         if self.original_control_word != None:
             restore_fenv(original_control_word)
