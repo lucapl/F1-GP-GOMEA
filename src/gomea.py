@@ -1,8 +1,9 @@
-from deap import creator, gp, base, tools
-import pickle
-import numpy as np
-import random
 import itertools
+import pickle
+import random
+
+from deap import base, creator, tools
+
 from src.linkage import LinkageModel
 
 
@@ -26,7 +27,9 @@ def eaGOMEA(
     logbook=None,
     checkpoint_freq=None,
     checkpoint_name=".\checkpoint_gomea_{gen}.pkl",
-    verbose=False):
+    verbose=False,
+    fmut=10,
+):
     """
     Tudelft GPGOMEA paper algorithm using deap
 
@@ -39,7 +42,7 @@ def eaGOMEA(
     # stats for observation
     if not logbook:
         logbook = tools.Logbook()
-    logbook.header = ['gen'] + (stats.fields if stats else [])
+    logbook.header = ["gen"] + (stats.fields if stats else [])
 
     # evaluate not evaluated individuals
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
@@ -48,7 +51,7 @@ def eaGOMEA(
         ind.fitness.values = fit
 
     record = stats.compile(population) if stats else {}
-    if start_gen not in logbook.select('gen'):
+    if start_gen not in logbook.select("gen"):
         logbook.record(gen=start_gen, nevals=len(invalid_ind), **record)
 
     if halloffame is not None:
@@ -56,15 +59,25 @@ def eaGOMEA(
 
     if verbose:
         print(logbook.stream)
-
     # main algorithm
-    gen = start_gen+1
+    gen = start_gen + 1
     while not toolbox.should_stop(population, gen):
         # algorithm operators
         linkage_model = toolbox.build_linkage_model(population)
-        lms, lpops = [linkage_model for _ in range(len(population))], [population for _ in range(len(population))]
-        #toolboxes = [toolbox for _ in range(len(population))]
-        new_pop = list(toolbox.map(toolbox.genepool_optimal_mixing, population, lms, lpops))
+        lms, lpops = (
+            [linkage_model for _ in range(len(population))],
+            [population for _ in range(len(population))],
+        )
+        # toolboxes = [toolbox for _ in range(len(population))]
+        new_pop = list(
+            toolbox.map(toolbox.genepool_optimal_mixing, population, lms, lpops)
+        )
+        # print(new_pop[0])
+        if gen % fmut == 0:
+            print("Mutation time!")
+            new_pop = list(toolbox.map(toolbox.mutate, new_pop))
+        # print(new_pop[0])
+        
         nevals = toolbox.get_evaluations()
         population = new_pop
 
@@ -84,17 +97,24 @@ def eaGOMEA(
                 generation=gen,
                 halloffame=halloffame,
                 logbook=logbook,
-                rndstate=random.getstate()) 
+                rndstate=random.getstate(),
+            )
 
             with open(checkpoint_name.format(gen=gen), "wb") as cp_file:
                 pickle.dump(cp, cp_file)
-        
         gen += 1
-
+    # toolbox.mutate(population[0])
+    print(type(population), str(population[0]))
     return population, logbook
 
 
-def gom(individual: list, linkage_model: LinkageModel, population: list[list[str]], toolbox: base.Toolbox, forcedImprov=True):
+def gom(
+    individual: list,
+    linkage_model: LinkageModel,
+    population: list[list[str]],
+    toolbox: base.Toolbox,
+    forcedImprov=True,
+):
     """
     genepool optimal mixing operator from Tudelft GPGOMEA paper by Marco Virgolin
 
@@ -140,16 +160,17 @@ def gom(individual: list, linkage_model: LinkageModel, population: list[list[str
     if not improvement and forcedImprov:
         best = tools.selBest(population, 1)[0]
         if improving_ind != best:
-            improving_ind = toolbox.forced_improvement(improving_ind, linkage_model, best)
+            improving_ind = toolbox.forced_improvement(
+                improving_ind, linkage_model, best
+            )
     return improving_ind
 
 
 def forced_improvement(improving_ind, linkage_model, donor, toolbox):
-    '''
+    """
     this probably speeds up convergendce very much
-    '''
+    """
     cloned_ind = toolbox.clone(improving_ind)
-
 
     for i in range(len(linkage_model)):
         f_i = linkage_model[donor]
@@ -168,17 +189,23 @@ def forced_improvement(improving_ind, linkage_model, donor, toolbox):
 
         # assumes maximizing fitness; reverts worsening changes
         if improving_ind.fitness >= cloned_ind.fitness:
-            return improving_ind # end after improving
+            return improving_ind  # end after improving
         else:
             improving_ind = toolbox.clone(cloned_ind)
 
-    return toolbox.clone(donor) # if nothing found, replaced with the best
+    return toolbox.clone(donor)  # if nothing found, replaced with the best
 
 
-def override_nodes(recipient: list, donor: list, f_i: tuple[int], toolbox, fillvalue="_"):
-    geno = [di if i in f_i else ri for i,(ri,di) in enumerate(itertools.zip_longest(recipient, donor, fillvalue=fillvalue))]
+def override_nodes(
+    recipient: list, donor: list, f_i: tuple[int], toolbox, fillvalue="_"
+):
+    geno = [
+        di if i in f_i else ri
+        for i, (ri, di) in enumerate(
+            itertools.zip_longest(recipient, donor, fillvalue=fillvalue)
+        )
+    ]
     geno = [i for i in geno if i != fillvalue]
     ind = creator.Individual(geno)
     ind.fitness = toolbox.clone(recipient.fitness)
     return ind
-
