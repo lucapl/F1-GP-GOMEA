@@ -86,7 +86,7 @@ if __name__ == '__main__':
     frasmpy_path = Path(args.framspy)
     sim_formatted = ';'.join([
         (frasmpy_path/sim_file).absolute().as_posix()
-        for sim_file in ['eval-allcriteria.sim', "deterministic.sim", 'recording-body-coords.sim']
+        for sim_file in ['eval-allcriteria.sim', 'recording-body-coords.sim']
     ])
 
     # engine
@@ -123,7 +123,7 @@ if __name__ == '__main__':
     toolbox.register("genepool_optimal_mixing", gom, toolbox=toolbox, forcedImprov=isForcedImprov)
     toolbox.register("forced_improvement", forced_improvement, toolbox=toolbox)
     toolbox.register("build_linkage_model", LinkageTreeFramsF1, original_control_word=None)
-    toolbox.register("override_nodes", override_nodes, fillvalue="_")
+    toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
 
     toolbox.register("get_evaluations", framsLib.get_evals)
 

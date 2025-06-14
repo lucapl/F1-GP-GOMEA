@@ -175,10 +175,10 @@ def forced_improvement(improving_ind, linkage_model, donor, toolbox):
     return toolbox.clone(donor) # if nothing found, replaced with the best
 
 
-def override_nodes(recipient: list, donor: list, f_i: tuple[int], fillvalue="_"):
+def override_nodes(recipient: list, donor: list, f_i: tuple[int], toolbox, fillvalue="_"):
     geno = [di if i in f_i else ri for i,(ri,di) in enumerate(itertools.zip_longest(recipient, donor, fillvalue=fillvalue))]
     geno = [i for i in geno if i != fillvalue]
     ind = creator.Individual(geno)
-    ind.fitness.values = recipient.fitness.values
+    ind.fitness = toolbox.clone(recipient.fitness)
     return ind
 
