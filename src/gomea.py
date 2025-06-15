@@ -76,6 +76,10 @@ def eaGOMEA(
         if gen % fmut == 0:
             print("Mutation time!")
             new_pop = list(toolbox.map(toolbox.mutate, new_pop))
+            invalid_ind = [ind for ind in new_pop if not ind.fitness.valid]
+            fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+            for ind, fit in zip(invalid_ind, fitnesses):
+                ind.fitness.values = fit
         # print(new_pop[0])
         
         nevals = toolbox.get_evaluations()
@@ -104,7 +108,7 @@ def eaGOMEA(
                 pickle.dump(cp, cp_file)
         gen += 1
     # toolbox.mutate(population[0])
-    print(type(population), str(population[0]))
+    #print(type(population), str(population[0]))
     return population, logbook
 
 
