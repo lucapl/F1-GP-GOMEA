@@ -13,6 +13,7 @@ from deap import creator, base, tools, gp
 
 from src.gomea import load_checkpoint, eaGOMEA, gom, forced_improvement, override_nodes
 from src.linkage import LinkageTreeFramsF1
+from src.gomea import eaGOMEA, forced_improvement, gom, migrate_subpops, override_nodes
 from src.gpf1 import create_f1_pset, parse
 
 from src.stats import calc_uniqueness, calc_gene_diversity, calc_entropy
@@ -34,6 +35,7 @@ def prepare_gomea_parser(parser):
     parser.add_argument('--no_forced_improv', action='store_true')
     parser.add_argument('--framspy', help="Specifies location of framspy/simfiles.", default="./framspy")
     parser.add_argument('--framslib', help="Specifies location of framstick engine.", default="./Framsticks52")
+    parser.add_argument("--nmix", default=5, type=int)
 
     return parser
 
@@ -155,19 +157,39 @@ if __name__ == '__main__':
     logbook = None
     start_gen = 0
 
-    pop = toolbox.population()
+    n_subpops = 4
+    subpops = [toolbox.population() for _ in range(n_subpops)]
+    logbooks = [None] * n_subpops
+    start_gens = [0] * n_subpops
 
     ########################
     # MAIN ALGORITHM
     ########################
-    new_pop, logbook = eaGOMEA(pop, toolbox,
-    start_gen=start_gen,
-    logbook=logbook,
-    stats=mstats,
-    halloffame=hof,
-    # checkpoint_freq=args.checkpoint_frequency,
-    # checkpoint_name=checkpoints_out,
-    verbose=args.verbose)
+    MIGRATION_INTERVAL = 5
+    MIGRATION_COUNT = 2
+    for mix in range(args.nmix):
+        print(f"--- Mix {mix}/{args.nmix} ---")
+        for i in range(n_subpops):
+            print(f"- Subpopulation {i}/{n_subpops}")
+            subpops[i], logbooks[i] = eaGOMEA(
+                subpops[i],
+                toolbox,
+                start_gen=start_gens[i],
+                logbook=logbooks[i],
+                stats=mstats,
+                halloffame=None,
+                checkpoint_freq=None,
+                verbose=args.verbose,
+            )
+            start_gens[i] += 1
+
+        if mix % MIGRATION_INTERVAL == 0:
+            migrate_subpops(toolbox, subpops, k=MIGRATION_COUNT, replace=True)
+
+    final_population = [ind for pop in subpops for ind in pop]
+    best = tools.selBest(final_population, 1)[0]
+    print("Best final individual:", best)
+    print("Fitness:", best.fitness.values[0])
 
     #######################
     # saving outputs

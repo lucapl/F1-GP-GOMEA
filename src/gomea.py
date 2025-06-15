@@ -182,3 +182,26 @@ def override_nodes(recipient: list, donor: list, f_i: tuple[int], toolbox, fillv
     ind.fitness = toolbox.clone(recipient.fitness)
     return ind
 
+
+def migrate_subpops(toolbox, subpops, k, replace=True):
+    """
+    Migrate individuals between subpopulations.
+
+    Args:
+        subpops: List of subpopulation lists
+        k: Number of individuals to migrate per pair
+        replace: If True, replace worst individuals in target pop
+    """
+    n = len(subpops)
+    for i in range(n):
+        src = subpops[i]
+        dst = subpops[(i + 1) % n]
+
+        migrants = tools.selBest(src, k)
+        if replace:
+            replacees = tools.selWorst(dst, k)
+            for r, m in zip(replacees, migrants):
+                dst.remove(r)
+                dst.append(toolbox.clone(m))
+        else:
+            dst.extend(toolbox.clone(m) for m in migrants)
