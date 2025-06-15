@@ -47,7 +47,7 @@ def parse_neuron(neuron_inside: str | list[str], is_first=True):
         neuron_type = neuron_inside[0]
         i = 1
     if is_first:
-        neuron_type = "N" if not neuron_type else neuron_type
+        neuron_type = "ntN" if not neuron_type else neuron_type
         neuron_type = special_neurons.get(neuron_type, neuron_type)
         return neuron_type, parse_neuron(neuron_inside[i:], is_first=False)
 
@@ -70,10 +70,12 @@ def parse(geno:str, pset):
             return gp.MetaEphemeral("nint", partial(lambda s: s, symbol))()
         elif isinstance(symbol, float):
             return gp.MetaEphemeral("nfloat", partial(lambda s: s, symbol))()
-        return nodes[symbol]
+        return nodes.get(symbol, None)
 
     #print(geno)
-    return [map_to(symbol) for symbol in parsed]
+    mapped = [map_to(symbol) for symbol in parsed]
+    mapped = [s for s in mapped if s != None]
+    return mapped
 
 
 class AutoName(Enum):

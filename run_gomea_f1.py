@@ -1,24 +1,17 @@
-import os, sys
-import json
-import math
 import argparse
 from functools import partial
 from pathlib import Path
 
-from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
-from framspy.src.FramsticksEvolution import save_genotypes
-
 import numpy as np
-from deap import creator, base, tools, gp
+from deap import base, creator, gp, tools
 
-from src.gomea import load_checkpoint, eaGOMEA, gom, forced_improvement, override_nodes
-from src.linkage import LinkageTreeFramsF1
+from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
+from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
-
-from src.stats import calc_uniqueness, calc_gene_diversity, calc_entropy
-
-from src.utils.stopping import earlyStoppingOrMaxIter, EarlyStopper
+from src.linkage import LinkageTreeFramsF1
 from src.utils.fpcontrol import *
+from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
+
 
 
 def prepare_gomea_parser(parser):
@@ -32,8 +25,11 @@ def prepare_gomea_parser(parser):
                         default=['eval-allcriteria.sim', 'recording-body-coords.sim'],
                         help='List of simulation files to use.')
     parser.add_argument('--no_forced_improv', action='store_true')
-    parser.add_argument('--framspy', help="Specifies location of framspy/simfiles.", default="./framspy")
+    parser.add_argument('--sim_location', help="Specifies location of simfiles.", default="./framspy")
     parser.add_argument('--framslib', help="Specifies location of framstick engine.", default="./Framsticks52")
+    parser.add_argument('--pmut', help="Probability of mutation occuring", default=0.8, type=float)
+    parser.add_argument('--fmut', help="Frequency of mutation occuring", default=10, type=int)
+    parser.add_argument('--count_nevals', help="Counts evaluations of genotype", action="store_true")
 
     return parser
 
@@ -41,6 +37,7 @@ def prepare_gomea_parser(parser):
 #toolbox = LinkageToolbox('build_linkage_model', 'override_nodes')
 #toolbox.define_default_linkages(CHARS, PREFIX, original_control_word)
 
+import random
 
 def evaluate(ptree, pset, flib, invalid_fitness, criteria):
     try:
@@ -54,10 +51,20 @@ def evaluate(ptree, pset, flib, invalid_fitness, criteria):
         raise Exception
     if not valid:
         return (invalid_fitness,)
+    #return (random.random(), )
     # before running a creature through a simulation we ensure the genotype is valid
     value = flib.evaluate(geno)[0]#["evaluations"][''][criteria]
     return (value,) 
 
+def mutate(individual, pset, pmut, toolbox):
+    if np.random.random() >= pmut:
+        return individual
+    mutated = [str(gp.compile(individual, pset))]
+    mutated = framsLib.mutate(mutated)
+    mutated = parse(mutated[0].replace(" ",""), pset)
+    ind = creator.Individual(mutated)
+    # ind.fitness = toolbox.clone(individual.fitness)
+    return ind
 
 def generate_random(flib, n=100, geno_format="1"):
     geno = [flib.getSimplest(geno_format)]
@@ -69,6 +76,9 @@ def generate_random(flib, n=100, geno_format="1"):
 def create_ind(flib, pset, n=100):
     return parse(generate_random(flib, n)[0].replace(" ",""), pset)
 
+def create_subtree(flib, pset, low=0,high=100,type_=None):
+    n = np.random.randint(low,high)
+    return parse(generate_random(flib, n)[0].replace(" ",""), pset)
 
 if __name__ == '__main__':
     # prepare arguments
@@ -83,7 +93,7 @@ if __name__ == '__main__':
     # load Framsticks library
     ##########################
     # sim files
-    frasmpy_path = Path(args.framspy)
+    frasmpy_path = Path(args.sim_location)
     sim_formatted = ';'.join([
         (frasmpy_path/sim_file).absolute().as_posix()
         for sim_file in args.sims
@@ -124,8 +134,8 @@ if __name__ == '__main__':
     toolbox.register("forced_improvement", forced_improvement, toolbox=toolbox)
     toolbox.register("build_linkage_model", LinkageTreeFramsF1, original_control_word=None)
     toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
-
-    toolbox.register("get_evaluations", framsLib.get_evals)
+    toolbox.register("mutate",mutate, pset=pset, pmut=args.pmut, toolbox=toolbox)
+    toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
 
     ####################
     # stats logging
@@ -160,14 +170,18 @@ if __name__ == '__main__':
     ########################
     # MAIN ALGORITHM
     ########################
-    new_pop, logbook = eaGOMEA(pop, toolbox,
-    start_gen=start_gen,
-    logbook=logbook,
-    stats=mstats,
-    halloffame=hof,
-    # checkpoint_freq=args.checkpoint_frequency,
-    # checkpoint_name=checkpoints_out,
-    verbose=args.verbose)
+    try:
+        new_pop, logbook = eaGOMEA(pop, toolbox,
+        start_gen=start_gen,
+        logbook=logbook,
+        stats=mstats,
+        halloffame=hof,
+        fmut = args.fmut,
+        # checkpoint_freq=args.checkpoint_frequency,
+        # checkpoint_name=checkpoints_out,
+        verbose=args.verbose)
+    except Exception as err:
+        print(f"Unexpected {err=}, {type(err)=}")
 
     #######################
     # saving outputs
