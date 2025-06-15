@@ -31,3 +31,8 @@ python3.12 run_gomea_f1.py \
 	--sim_location $PATH_TO_SIMFILE_FOLDER \
 	--sims $sim1 $sim2 ... \
 ```
+
+## Algorithm
+
+The algorithm implements GOMEA in a GP representation of Framsticks F1 representation. First it generates a small, random population by applying mutation n times to a simplest framsticks in F1. Then it parses them to a GP representation of F1. The algorithm build a Linkage Tree based on cooccurence of types of nodes at given positions. Based on the model it performs Gene-Pool Optimal Mixing. Every x generations it performs mutation on with some probability on the entire population in order to increase diversity, as GOMEA does not introduce it itself (like new neuron weights or connections, stick modifiers). 
+
