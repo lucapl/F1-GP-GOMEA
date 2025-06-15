@@ -1,0 +1,5 @@
+# Evaluate a creature a single time
+# Less reliable results, but quicker simulations
+
+sim_params:
+evalcount:1
