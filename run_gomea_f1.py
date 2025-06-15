@@ -13,6 +13,7 @@ from src.utils.fpcontrol import *
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
 
 
+
 def prepare_gomea_parser(parser):
     parser.add_argument('-n', '--ngen', default=15, type=int)
     parser.add_argument('-p', '--popsize', default=20, type=int)
@@ -21,7 +22,7 @@ def prepare_gomea_parser(parser):
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--sims',
                         nargs='+',
-                        default=['eval-allcriteria.sim', 'deterministic.sim', 'recording-body-coords.sim'],
+                        default=['eval-allcriteria.sim', 'recording-body-coords.sim'],
                         help='List of simulation files to use.')
     parser.add_argument('--no_forced_improv', action='store_true')
     parser.add_argument('--framspy', help="Specifies location of framspy/simfiles.", default="./framspy")
@@ -92,7 +93,7 @@ if __name__ == '__main__':
     frasmpy_path = Path(args.framspy)
     sim_formatted = ';'.join([
         (frasmpy_path/sim_file).absolute().as_posix()
-        for sim_file in ['eval-allcriteria.sim', 'recording-body-coords.sim']
+        for sim_file in args.sims
     ])
 
     # engine
