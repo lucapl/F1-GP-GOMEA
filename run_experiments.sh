@@ -5,16 +5,16 @@
 echo "READ and ADJUST this script file"
 
 # Adjust this based on the number of CPU cores
-max_processes=6
+max_processes=3
 echo "Max processes: $max_processes"
 echo "Adjust this num ^ to the number of CPU cores"
 
 # Define experiments
-experiments=$(seq 1 6)
+experiments=$(seq 7 10)
 echo "Experiments: $experiments"
 echo "IMPORTANT: adjust this ^ to not overwrite old results"
 
-popsizes=2
+popsizes=64
 echo "Popsizes are: ${popsizes[@]}"
 
 # Output folder
@@ -34,7 +34,16 @@ run_job() {
     #echo "Starting job for linkage: $linkage, experiment: $experiment"
     
     # Run the command and redirect output to the log file
-    (cd "$full_output" && python3.12 "$cwd/run_gomea_f1.py" -n 2 -e 7 -g 100 -p "$popsize" -v --framspy "$cwd/framspy" --framslib "$cwd/Framsticks52" > "$logfile" 2>&1)
+    (cd "$full_output" && python3.12 "$cwd/run_gomea_f1.py" \
+	-n 100 \
+	-e 7 \
+	-g 100 \
+	-p "$popsize" \
+	-v \
+	--framspy "$cwd/framspy" \
+	--framslib "$cwd/Framsticks52" \
+	--sims "eval-allcriteria.sim" "recording-body-coords.sim" \
+	> "$logfile" 2>&1)
 }
 
 # Export function and variables for parallel execution
