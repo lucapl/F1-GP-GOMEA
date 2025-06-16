@@ -41,11 +41,11 @@ def prepare_gomea_parser(parser):
 def evaluate(ptree, pset, flib, invalid_fitness, criteria):
     try:
         geno = [str(gp.compile(ptree, pset))]
-    except:
+    except Exception:
         return (invalid_fitness,)
     try:
         valid = flib.isValidCreature(geno)[0]
-    except:
+    except Exception:
         print(geno)
         raise Exception
     if not valid:
