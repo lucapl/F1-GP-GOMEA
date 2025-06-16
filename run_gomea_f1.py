@@ -1,4 +1,5 @@
 import argparse
+import random
 from functools import partial
 from pathlib import Path
 
@@ -9,9 +10,8 @@ from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
-from src.utils.fpcontrol import *
+from src.utils.fpcontrol import print_fenv_state, restore_fenv
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
-
 
 
 def prepare_gomea_parser(parser):
@@ -37,7 +37,6 @@ def prepare_gomea_parser(parser):
 #toolbox = LinkageToolbox('build_linkage_model', 'override_nodes')
 #toolbox.define_default_linkages(CHARS, PREFIX, original_control_word)
 
-import random
 
 def evaluate(ptree, pset, flib, invalid_fitness, criteria):
     try:
@@ -74,13 +73,15 @@ def generate_random(flib, n=100, geno_format="1"):
 
 
 def create_ind(flib, pset, n=100):
-    return parse(generate_random(flib, n)[0].replace(" ",""), pset)
+    return parse(generate_random(flib, n)[0].replace(" ", ""), pset)
 
-def create_subtree(flib, pset, low=0,high=100,type_=None):
-    n = np.random.randint(low,high)
-    return parse(generate_random(flib, n)[0].replace(" ",""), pset)
 
-if __name__ == '__main__':
+def create_subtree(flib, pset, low=0, high=100, type_=None):
+    n = np.random.randint(low, high)
+    return parse(generate_random(flib, n)[0].replace(" ", ""), pset)
+
+
+def main():
     # prepare arguments
     parser = argparse.ArgumentParser(
                     prog='GOMEA experiment',
@@ -187,3 +188,7 @@ if __name__ == '__main__':
     # saving outputs
     #######################
     framsLib.end()
+
+
+if __name__ == "__main__":
+    main()
