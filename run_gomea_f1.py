@@ -35,7 +35,7 @@ def prepare_gomea_parser(parser):
     parser.add_argument('--MOCK_EVALS', action="store_true")
     parser.add_argument('--sims',
                         nargs='+',
-                        default=['eval-allcriteria.sim', 'recording-body-coords.sim'],
+                        default=['eval-allcriteria.sim', 'f1_params.sim', 'recording-body-coords.sim'],
                         help='List of simulation files to use.')
     parser.add_argument('--no_forced_improv', action='store_true')
     parser.add_argument(
