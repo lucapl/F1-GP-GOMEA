@@ -19,7 +19,10 @@ def prepare_gomea_parser(parser):
     parser.add_argument('-p', '--popsize', default=20, type=int)
     parser.add_argument('-e', '--early_stop', default=10, type=int)
     parser.add_argument('-g', '--initial_geno_mutations', default=100, type=int)
+    parser.add_argument('--parts', nargs='+', default=[20, 30], help='Initial genotypes parts range')
+    parser.add_argument('--neurons', nargs='+', default=[6, 8], help='Initial genotypes neurons range')
     parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('--MOCK_EVALS', action="store_true")
     parser.add_argument('--sims',
                         nargs='+',
                         default=['eval-allcriteria.sim', 'recording-body-coords.sim'],
@@ -39,11 +42,16 @@ def prepare_gomea_parser(parser):
 
 import random
 
-def evaluate(ptree, pset, flib, invalid_fitness, criteria):
+solution_cache={}
+
+def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
     try:
-        geno = [str(gp.compile(ptree, pset))]
+        geno = str(gp.compile(ptree, pset))
     except:
         return (invalid_fitness,)
+    if geno in solution_cache:
+        return (solution_cache[geno],)
+    geno = [geno]
     try:
         valid = flib.isValidCreature(geno)[0]
     except:
@@ -51,10 +59,13 @@ def evaluate(ptree, pset, flib, invalid_fitness, criteria):
         raise Exception
     if not valid:
         return (invalid_fitness,)
-    #return (random.random(), )
     # before running a creature through a simulation we ensure the genotype is valid
-    value = flib.evaluate(geno)[0]#["evaluations"][''][criteria]
-    return (value,) 
+    if not mock_test:
+        value = flib.evaluate(geno)[0]#["evaluations"][''][criteria]
+    else:
+        value = random.expovariate()
+    solution_cache[geno[0]] = value
+    return (value, ) 
 
 def mutate(individual, pset, pmut, toolbox):
     if np.random.random() >= pmut:
@@ -66,19 +77,19 @@ def mutate(individual, pset, pmut, toolbox):
     # ind.fitness = toolbox.clone(individual.fitness)
     return ind
 
-def generate_random(flib, n=100, geno_format="1"):
-    geno = [flib.getSimplest(geno_format)]
-    for i in range(n):
-        geno = flib.mutate(geno)
-    return geno
+
+def generate_random(flib, parts: tuple[int, int], neurons: tuple[int, int], iters: int, geno_format="1"):
+    return flib.getRandomGenotype(flib.getSimplest(geno_format), *parts, *neurons, iters, return_even_if_failed=True)
 
 
 def create_ind(flib, pset, n=100):
     return parse(generate_random(flib, n)[0].replace(" ",""), pset)
 
+
 def create_subtree(flib, pset, low=0,high=100,type_=None):
     n = np.random.randint(low,high)
     return parse(generate_random(flib, n)[0].replace(" ",""), pset)
+
 
 if __name__ == '__main__':
     # prepare arguments
@@ -116,13 +127,13 @@ if __name__ == '__main__':
     toolbox = base.Toolbox()
     early_stopper = EarlyStopper(args.early_stop, toolbox)
     # basic operators
-    toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, n=args.initial_geno_mutations)
+    toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, iters=args.initial_geno_mutations, parts=args.parts, neurons=args.neurons)
     toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.random_individual)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual, args.popsize)
 
     # evaluation for testing
     max_len = args.initial_geno_mutations
-    toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria="distance")
+    toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria="distance", mock_test=args.MOCK_EVALS)
 
     # early stopper or max itera
     toolbox.register("should_stop", partial(earlyStoppingOrMaxIter, max_gen=args.ngen, early_stopper=EarlyStopper(args.early_stop, toolbox)))
