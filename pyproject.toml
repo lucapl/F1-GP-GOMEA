@@ -9,7 +9,8 @@ dependencies = [
     "framspy-local-package",
     "numpy>=2.2.6",
     "ipykernel>=6.29.5",
-    "scipy>=1.15.3"
+    "scipy>=1.15.3",
+    "python-dotenv>=1.1.0",
 ]
 
 [tool.uv.sources]

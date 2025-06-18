@@ -1,17 +1,27 @@
 import argparse
+import os
+import random
 from functools import partial
 from pathlib import Path
 
 import numpy as np
 from deap import base, creator, gp, tools
+from dotenv import load_dotenv
 
+import framspy
 from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
-from src.utils.fpcontrol import *
+from src.utils.fpcontrol import print_fenv_state, restore_fenv
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
 
+
+load_dotenv()
+# default values for --framslib and --sim_location
+ENV_FRAMSTICKS_DLL = os.getenv("FRAMSTICKS_DLL_PATH", "./Framsticks52")
+# ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
+ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", str(framspy.__path__[0]))
 
 
 def prepare_gomea_parser(parser):
@@ -25,9 +35,19 @@ def prepare_gomea_parser(parser):
                         default=['eval-allcriteria.sim', 'recording-body-coords.sim'],
                         help='List of simulation files to use.')
     parser.add_argument('--no_forced_improv', action='store_true')
-    parser.add_argument('--sim_location', help="Specifies location of simfiles.", default="./framspy")
-    parser.add_argument('--framslib', help="Specifies location of framstick engine.", default="./Framsticks52")
-    parser.add_argument('--pmut', help="Probability of mutation occuring", default=0.8, type=float)
+    parser.add_argument(
+        "--sim_location",
+        help="Specifies location of simfiles.",
+        default=ENV_FRAMSPY_PATH,
+        #  default="./framspy"
+    )
+    parser.add_argument(
+        "--framslib",
+        help="Specifies location of framstick engine.",
+        default=ENV_FRAMSTICKS_DLL,
+        #  default="./Framsticks52"
+    )
+    parser.add_argument("--pmut", help="Probability of mutation occuring", default=0.8, type=float)
     parser.add_argument('--fmut', help="Frequency of mutation occuring", default=10, type=int)
     parser.add_argument('--count_nevals', help="Counts evaluations of genotype", action="store_true")
 
@@ -37,16 +57,15 @@ def prepare_gomea_parser(parser):
 #toolbox = LinkageToolbox('build_linkage_model', 'override_nodes')
 #toolbox.define_default_linkages(CHARS, PREFIX, original_control_word)
 
-import random
 
 def evaluate(ptree, pset, flib, invalid_fitness, criteria):
     try:
         geno = [str(gp.compile(ptree, pset))]
-    except:
+    except Exception:
         return (invalid_fitness,)
     try:
         valid = flib.isValidCreature(geno)[0]
-    except:
+    except Exception:
         print(geno)
         raise Exception
     if not valid:
@@ -74,13 +93,15 @@ def generate_random(flib, n=100, geno_format="1"):
 
 
 def create_ind(flib, pset, n=100):
-    return parse(generate_random(flib, n)[0].replace(" ",""), pset)
+    return parse(generate_random(flib, n)[0].replace(" ", ""), pset)
 
-def create_subtree(flib, pset, low=0,high=100,type_=None):
-    n = np.random.randint(low,high)
-    return parse(generate_random(flib, n)[0].replace(" ",""), pset)
 
-if __name__ == '__main__':
+def create_subtree(flib, pset, low=0, high=100, type_=None):
+    n = np.random.randint(low, high)
+    return parse(generate_random(flib, n)[0].replace(" ", ""), pset)
+
+
+def main():
     # prepare arguments
     parser = argparse.ArgumentParser(
                     prog='GOMEA experiment',
@@ -187,3 +208,7 @@ if __name__ == '__main__':
     # saving outputs
     #######################
     framsLib.end()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,9 +1,9 @@
-import numpy as np
-from scipy.stats import spearmanr, pearsonr, entropy
-
 from collections import Counter
 
-from src.utils.fpcontrol import *
+import numpy as np
+from scipy.stats import entropy, pearsonr, spearmanr
+
+from src.utils.fpcontrol import print_fenv_state, restore_fenv
 
 
 def correlation(population, char_order, cor_func, original_control_word=None):
