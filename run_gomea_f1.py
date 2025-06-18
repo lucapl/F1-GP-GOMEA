@@ -29,8 +29,8 @@ def prepare_gomea_parser(parser):
     parser.add_argument('-p', '--popsize', default=20, type=int)
     parser.add_argument('-e', '--early_stop', default=10, type=int)
     parser.add_argument('-g', '--initial_geno_mutations', default=100, type=int)
-    parser.add_argument('--parts', nargs='+', default=[20, 30], help='Initial genotypes parts range')
-    parser.add_argument('--neurons', nargs='+', default=[6, 8], help='Initial genotypes neurons range')
+    parser.add_argument('--parts', nargs=2, type=int, default=[20, 30], help='Initial genotypes parts range')
+    parser.add_argument('--neurons', nargs=2, type=int, default=[6, 8], help='Initial genotypes neurons range')
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('--MOCK_EVALS', action="store_true")
     parser.add_argument('--sims',
@@ -61,7 +61,7 @@ def prepare_gomea_parser(parser):
 #toolbox.define_default_linkages(CHARS, PREFIX, original_control_word)
 
 
-solution_cache={}
+solution_cache={} # avoids wasting precious eval count
 
 def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
     try:
@@ -86,7 +86,7 @@ def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
     solution_cache[geno[0]] = value
     return (value, ) 
 
-def mutate(individual, pset, pmut, toolbox):
+def mutate(individual, pset, pmut, toolbox, framsLib):
     if np.random.random() >= pmut:
         return individual
     mutated = [str(gp.compile(individual, pset))]
@@ -101,13 +101,13 @@ def generate_random(flib, parts: tuple[int, int], neurons: tuple[int, int], iter
     return flib.getRandomGenotype(flib.getSimplest(geno_format), *parts, *neurons, iters, return_even_if_failed=True)
 
 
-def create_ind(flib, pset, n=100):
-    return parse(generate_random(flib, n)[0].replace(" ", ""), pset)
+def create_ind(flib, pset, parts: tuple[int, int], neurons: tuple[int, int], iters: int, geno_format="1"):
+    return parse(generate_random(flib, parts, neurons, iters, geno_format).replace(" ", ""), pset)
 
 
 def create_subtree(flib, pset, low=0, high=100, type_=None):
     n = np.random.randint(low, high)
-    return parse(generate_random(flib, n)[0].replace(" ", ""), pset)
+    return parse(generate_random(flib, n).replace(" ", ""), pset)
 
 
 def main():
@@ -164,7 +164,7 @@ def main():
     toolbox.register("forced_improvement", forced_improvement, toolbox=toolbox)
     toolbox.register("build_linkage_model", LinkageTreeFramsF1, original_control_word=None)
     toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
-    toolbox.register("mutate",mutate, pset=pset, pmut=args.pmut, toolbox=toolbox)
+    toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
     toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
 
     ####################
@@ -196,6 +196,7 @@ def main():
     start_gen = 0
 
     pop = toolbox.population()
+    print(pop[0])
 
     ########################
     # MAIN ALGORITHM
