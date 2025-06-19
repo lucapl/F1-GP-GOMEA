@@ -19,7 +19,7 @@ class FramsticksLibCompetition(FramsticksLib):
 	"""
 
 	COMPETITOR_ID = 'PPGOMEA'
-	SIMPLE_FITNESS_FORMAT = True  # set to False only if you want compatibility with existing sources of optimization algorithms such as FramsticksEvolution.py. Otherwise (for True), you will just get a simple number as fitness.
+	SIMPLE_FITNESS_FORMAT = False  # set to False only if you want compatibility with existing sources of optimization algorithms such as FramsticksEvolution.py. Otherwise (for True), you will just get a simple number as fitness.
 	FITNESS_DICT_KEY = 'COGpath'  # only used for SIMPLE_FITNESS_FORMAT = False
 
 	MAX_EVALUATIONS = 100_000  # 100k

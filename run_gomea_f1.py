@@ -54,6 +54,7 @@ def prepare_gomea_parser(parser):
     parser.add_argument('--fmut', help="Frequency of mutation occuring", default=10, type=int)
     parser.add_argument('--count_nevals', help="Counts evaluations of genotype", action="store_true")
     parser.add_argument('-t', '--test_function', default=3, choices=[3, 4, 5], help="Which test function to evaluate")
+    parser.add_argument('--criteria', default='COGpath', help="Name of the evaluation function criteria")
 
     return parser
 
@@ -81,7 +82,7 @@ def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
         return (invalid_fitness,)
     # before running a creature through a simulation we ensure the genotype is valid
     if not mock_test:
-        value = flib.evaluate(geno)[0]#["evaluations"][''][criteria]
+        value = flib.evaluate(geno)[0]["evaluations"][''][criteria]
     else:
         value = random.expovariate()
     solution_cache[geno[0]] = value
@@ -134,6 +135,7 @@ def main():
     # print_fenv_state("Before loading framsticks")
     framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
     framsLib.TEST_FUNCTION = args.test_function
+    framsLib.SIMPLE_FITNESS_FORMAT = False
     # print_fenv_state("After loading framsticks")
     # restore_fenv(original_control_word)
 
@@ -154,7 +156,7 @@ def main():
 
     # evaluation for testing
     max_len = args.initial_geno_mutations
-    toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria="distance", mock_test=args.MOCK_EVALS)
+    toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria=args.criteria, mock_test=args.MOCK_EVALS)
 
     # early stopper or max itera
     toolbox.register("should_stop", partial(earlyStoppingOrMaxIter, max_gen=args.ngen, early_stopper=EarlyStopper(args.early_stop, toolbox)))
