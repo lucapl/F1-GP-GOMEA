@@ -53,6 +53,7 @@ def prepare_gomea_parser(parser):
     parser.add_argument("--pmut", help="Probability of mutation occuring", default=0.8, type=float)
     parser.add_argument('--fmut', help="Frequency of mutation occuring", default=10, type=int)
     parser.add_argument('--count_nevals', help="Counts evaluations of genotype", action="store_true")
+    parser.add_argument('-t', '--test_function', default=3, choices=[3, 4, 5], help="Which test function to evaluate")
 
     return parser
 
@@ -132,6 +133,7 @@ def main():
     # engine
     # print_fenv_state("Before loading framsticks")
     framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
+    framsLib.TEST_FUNCTION = args.test_function
     # print_fenv_state("After loading framsticks")
     # restore_fenv(original_control_word)
 
