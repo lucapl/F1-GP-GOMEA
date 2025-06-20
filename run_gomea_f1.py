@@ -64,55 +64,6 @@ def prepare_gomea_parser(parser):
 #toolbox.define_default_linkages(CHARS, PREFIX, original_control_word)
 
 
-solution_cache={} # avoids wasting precious eval count
-
-def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
-    try:
-        geno = str(gp.compile(ptree, pset))
-    except:
-        return (invalid_fitness,)
-    if geno in solution_cache:
-        return (solution_cache[geno],)
-    geno = [geno]
-    try:
-        valid = flib.isValidCreature(geno)[0]
-    except Exception:
-        print(geno)
-        raise Exception
-    if not valid:
-        return (invalid_fitness,)
-    # before running a creature through a simulation we ensure the genotype is valid
-    if not mock_test:
-        value = flib.evaluate(geno)[0]["evaluations"][''][criteria]
-    else:
-        value = random.expovariate()
-    solution_cache[geno[0]] = value
-    return (value, ) 
-
-def mutate(individual, pset, pmut, toolbox, framsLib):
-    if np.random.random() >= pmut:
-        return individual
-    mutated = [str(gp.compile(individual, pset))]
-    mutated = framsLib.mutate(mutated)
-    mutated = parse(mutated[0].replace(" ",""), pset)
-    ind = creator.Individual(mutated)
-    # ind.fitness = toolbox.clone(individual.fitness)
-    return ind
-
-
-def generate_random(flib, parts: tuple[int, int], neurons: tuple[int, int], iters: int, geno_format="1"):
-    return flib.getRandomGenotype(flib.getSimplest(geno_format), *parts, *neurons, iters, return_even_if_failed=True)
-
-
-def create_ind(flib, pset, parts: tuple[int, int], neurons: tuple[int, int], iters: int, geno_format="1"):
-    return parse(generate_random(flib, parts, neurons, iters, geno_format).replace(" ", ""), pset)
-
-
-def create_subtree(flib, pset, low=0, high=100, type_=None):
-    n = np.random.randint(low, high)
-    return parse(generate_random(flib, n).replace(" ", ""), pset)
-
-
 def main():
     # prepare arguments
     parser = argparse.ArgumentParser(
@@ -151,26 +102,20 @@ def main():
     # toolbox = base.Toolbox()
     # # early_stopper = EarlyStopper(args.early_stop, toolbox)
     # # basic operators
-    # # toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, iters=args.initial_geno_mutations, parts=args.parts, neurons=args.neurons)
+    # toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, iters=args.initial_geno_mutations, parts=args.parts, neurons=args.neurons)
     # toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.random_individual)
     # toolbox.register("population", tools.initRepeat, list, toolbox.individual, args.popsize)
-
     # # evaluation for testing
-    # # max_len = args.initial_geno_mutations
-    # toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria=args.criteria, mock_test=args.MOCK_EVALS)
-
-    # # early stopper or max itera
-    # # toolbox.register("should_stop", partial(earlyStoppingOrMaxIter, max_gen=args.ngen, early_stopper=EarlyStopper(args.early_stop, toolbox)))
-
+    # max_len = args.initial_geno_mutations
     # # gomea operators
     # isForcedImprov = not args.no_forced_improv
     # print("Is forced improvent on?: ", isForcedImprov)
-    # # toolbox.register("genepool_optimal_mixing", gom, toolbox=toolbox, forcedImprov=isForcedImprov)
-    # # toolbox.register("forced_improvement", forced_improvement, toolbox=toolbox)
-    # # toolbox.register("build_linkage_model", LinkageTreeFramsF1, original_control_word=None)
-    # # toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
-    # # toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
-    # # toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
+    # toolbox.register("genepool_optimal_mixing", gom, toolbox=toolbox, forcedImprov=isForcedImprov)
+    # toolbox.register("forced_improvement", forced_improvement, toolbox=toolbox)
+    # toolbox.register("build_linkage_model", LinkageTreeFramsF1, original_control_word=None)
+    # toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
+    # toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
+    # toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
 
     toolbox = OurToolbox(args=args, framsLib=framsLib, pset=pset)
 
