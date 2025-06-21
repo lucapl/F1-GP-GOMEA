@@ -61,6 +61,11 @@ class OurToolbox(BasicToolbox):
         # self.should_stop = partial(
         self.early_stopper = EarlyStopper(self.args.early_stop, toolbox=self)
 
+        # evaluation statistics
+        self.solution_cache_hits = 0
+        "how many evalutions were cached?"
+        self.solution_cache_misses = 0
+
     def should_stop(self, population, gen):
         return earlyStoppingOrMaxIter(
             population=population,
@@ -151,8 +156,16 @@ class OurToolbox(BasicToolbox):
             geno = str(gp.compile(ptree, self.pset))
         except Exception:
             return (self.invalid_fitness,)
-        if geno in solution_cache:
-            return (solution_cache[geno],)
+
+        # if geno in solution_cache:
+        #     return (solution_cache[geno],)
+        # Lookup dictionary only once:
+        cached_f: float | None = solution_cache.get(geno)
+        if cached_f is not None:
+            self.solution_cache_hits += 1
+            return (cached_f,)
+        self.solution_cache_misses += 1
+
         geno = [geno]
         try:
             valid = self.flib.isValidCreature(geno)[0]

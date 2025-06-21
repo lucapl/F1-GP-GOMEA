@@ -166,6 +166,13 @@ def main():
     except Exception as err:
         print(f"Unexpected {err=}, {type(err)=}")
 
+    if True:
+        _cached_eval_ratio = toolbox.solution_cache_hits / (toolbox.solution_cache_hits + toolbox.solution_cache_misses)
+        print(f"Eval. cache stats: {_cached_eval_ratio:.1%}  "
+            f"{toolbox.solution_cache_hits:5} reused"
+            f" and {toolbox.solution_cache_misses} simulated."
+            )
+
     #######################
     # saving outputs
     #######################
