@@ -1,0 +1,21 @@
+exclude = [
+    "framspy/", # ignored
+]
+# Ignore unused imports
+ignore = ["F401", "E401"]
+
+# https://docs.astral.sh/ruff/rules/
+[lint.per-file-ignores]
+"*.ipynb" = [
+    # E402 	module-import-not-at-top-of-file
+    "E402",
+    # docstrings
+    "D400",
+    "D401",
+    "D404",
+    "D406",
+    "D407",
+    "D408",
+    "D409",
+    "D413",
+]
