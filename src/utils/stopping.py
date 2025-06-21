@@ -5,14 +5,14 @@ def maxIterStop(population, gen, max_gen):
     return gen > max_gen
 
 
-class EarlyStopper():
+class EarlyStopper:
     def __init__(self, iters, toolbox):
         self.fitness = deap.creator.FitnessMax()
-        self.fitness.values = (float('-inf'),)
+        self.fitness.values = (float("-inf"),)
         self.toolbox = toolbox
         self.i = 0
         self.iters = iters
-    
+
     def _select_value(self, population):
         return self.toolbox.clone(deap.tools.selBest(population, 1)[0].fitness)
 
