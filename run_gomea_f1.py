@@ -15,6 +15,7 @@ from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
 from src.utils.fpcontrol import print_fenv_state, restore_fenv
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
+from src.utils.elitism import SaveBest
 
 
 load_dotenv()
@@ -55,6 +56,7 @@ def prepare_gomea_parser(parser):
     parser.add_argument('--count_nevals', help="Counts evaluations of genotype", action="store_true")
     parser.add_argument('-t', '--test_function', default=3, choices=[3, 4, 5], help="Which test function to evaluate")
     parser.add_argument('--criteria', default='COGpath', help="Name of the evaluation function criteria")
+    parser.add_argument('--forced_improv_global', action='store_true')
 
     return parser
 
@@ -65,7 +67,7 @@ def prepare_gomea_parser(parser):
 
 solution_cache={} # avoids wasting precious eval count
 
-def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
+def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False, save_best=None):
     try:
         geno = str(gp.compile(ptree, pset))
     except:
@@ -86,7 +88,10 @@ def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
     else:
         value = random.expovariate()
     solution_cache[geno[0]] = value
-    return (value, ) 
+    values = (value, )
+    if save_best != None:
+        save_best.check(ptree, values)
+    return values
 
 def mutate(individual, pset, pmut, toolbox, framsLib):
     if np.random.random() >= pmut:
@@ -113,6 +118,10 @@ def create_ind(flib, pset, parts: tuple[int, int], neurons: tuple[int, int], ite
 def create_subtree(flib, pset, low=0, high=100, type_=None):
     n = np.random.randint(low, high)
     return parse(generate_random(flib, n).replace(" ", ""), pset)
+
+
+def default_get_best(population):
+    return tools.selBest(population, 1)[0]
 
 
 def main():
@@ -159,7 +168,6 @@ def main():
 
     # evaluation for testing
     max_len = args.initial_geno_mutations
-    toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria=args.criteria, mock_test=args.MOCK_EVALS)
 
     # early stopper or max itera
     toolbox.register("should_stop", partial(earlyStoppingOrMaxIter, max_gen=args.ngen, early_stopper=EarlyStopper(args.early_stop, toolbox)))
@@ -173,6 +181,9 @@ def main():
     toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
     toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
     toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
+    save_best = SaveBest() if args.forced_improv_global else None
+    toolbox.register("get_best", save_best.get_best if args.forced_improv_global else default_get_best)
+    toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria=args.criteria, mock_test=args.MOCK_EVALS, save_best=save_best)
 
     ####################
     # stats logging

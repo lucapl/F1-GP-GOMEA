@@ -165,7 +165,7 @@ def gom(
             # improving_ind.fitness = toolbox.clone(cloned_ind.fitness)
 
     if not improvement and forcedImprov:
-        best = toolbox.get_best()#tools.selBest(population, 1)[0]
+        best = toolbox.get_best(population)#tools.selBest(population, 1)[0]
         if improving_ind != best:
             improving_ind = toolbox.forced_improvement(
                 improving_ind, linkage_model, best
