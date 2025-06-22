@@ -60,8 +60,6 @@ def prepare_gomea_parser(parser):
     return parser
 
 #original_control_word = save_fenv() # this is important to not cause floating point exceptions and others
-#toolbox = LinkageToolbox('build_linkage_model', 'override_nodes')
-#toolbox.define_default_linkages(CHARS, PREFIX, original_control_word)
 
 
 def main():
@@ -98,24 +96,6 @@ def main():
     # framsticks classes
     creator.create("FitnessMax", base.Fitness, weights=[1])
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
-
-    # toolbox = base.Toolbox()
-    # # early_stopper = EarlyStopper(args.early_stop, toolbox)
-    # # basic operators
-    # toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, iters=args.initial_geno_mutations, parts=args.parts, neurons=args.neurons)
-    # toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.random_individual)
-    # toolbox.register("population", tools.initRepeat, list, toolbox.individual, args.popsize)
-    # # evaluation for testing
-    # max_len = args.initial_geno_mutations
-    # # gomea operators
-    # isForcedImprov = not args.no_forced_improv
-    # print("Is forced improvent on?: ", isForcedImprov)
-    # toolbox.register("genepool_optimal_mixing", gom, toolbox=toolbox, forcedImprov=isForcedImprov)
-    # toolbox.register("forced_improvement", forced_improvement, toolbox=toolbox)
-    # toolbox.register("build_linkage_model", LinkageTreeFramsF1, original_control_word=None)
-    # toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
-    # toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
-    # toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
 
     toolbox = OurToolbox(args=args, framsLib=framsLib, pset=pset)
 
