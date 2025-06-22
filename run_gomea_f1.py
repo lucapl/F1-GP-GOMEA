@@ -8,13 +8,14 @@ import numpy as np
 from deap import base, creator, gp, tools
 from dotenv import load_dotenv
 
-import framspy
+#import framspy
 from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
 from src.utils.fpcontrol import print_fenv_state, restore_fenv
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
+from src.utils.elitism import SaveBest
 
 from src.our_toolbox import OurToolbox
 
@@ -22,23 +23,24 @@ load_dotenv()
 # default values for --framslib and --sim_location
 ENV_FRAMSTICKS_DLL = os.getenv("FRAMSTICKS_DLL_PATH", "./Framsticks52")
 # ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
-ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", str(framspy.__path__[0]))
+ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")#str(framspy.__path__[0]))
 
 
 def prepare_gomea_parser(parser):
-    parser.add_argument('-n', '--ngen', default=15, type=int)
-    parser.add_argument('-p', '--popsize', default=20, type=int)
-    parser.add_argument('-e', '--early_stop', default=10, type=int)
+    parser.add_argument('-n', '--ngen', default=15, type=int, help="Number of generations to rund")
+    parser.add_argument('-p', '--popsize', default=20, type=int, help="Size of population")
+    parser.add_argument('-e', '--early_stop', default=10, type=int, help="Number of non-improving iterations till stopping")
     parser.add_argument('-g', '--initial_geno_mutations', default=100, type=int)
     parser.add_argument('--parts', nargs=2, type=int, default=[20, 30], help='Initial genotypes parts range')
     parser.add_argument('--neurons', nargs=2, type=int, default=[6, 8], help='Initial genotypes neurons range')
     parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('--MOCK_EVALS', action="store_true")
+    parser.add_argument('--MOCK_EVALS', action="store_true", help="RUNS random FUNCTION INSTEAD OF TRUE EVALUATION -> FOR TESTING ALGORITHMS")
     parser.add_argument('--sims',
                         nargs='+',
                         default=['eval-allcriteria.sim', 'f1_params.sim', 'recording-body-coords.sim'],
                         help='List of simulation files to use.')
-    parser.add_argument('--no_forced_improv', action='store_true')
+    parser.add_argument('--no_forced_improv', action='store_true', help='Toggles forced improvement phase in GOMEA')
+    parser.add_argument('--forced_improv_global', action='store_true', help="If true takes the best in history during forced improvement, else it takes the best from the population")
     parser.add_argument(
         "--sim_location",
         help="Specifies location of simfiles.",
@@ -97,7 +99,7 @@ def main():
     creator.create("FitnessMax", base.Fitness, weights=[1])
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
-    toolbox = OurToolbox(args=args, framsLib=framsLib, pset=pset)
+    toolbox = OurToolbox(args=args, framsLib=framsLib, pset=pset, if_forced_improv_save_best=args.forced_improv_global)
 
     ####################
     # stats logging
@@ -128,7 +130,7 @@ def main():
     start_gen = 0
 
     pop = toolbox.population()
-    print(pop[0])
+    #print(pop[0])
 
     ########################
     # MAIN ALGORITHM

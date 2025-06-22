@@ -14,6 +14,7 @@ from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
 from src.utils.fpcontrol import print_fenv_state, restore_fenv
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
+from src.utils.elitism import SaveBest
 
 # from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 
@@ -45,6 +46,7 @@ class OurToolbox(BasicToolbox):
         framsLib: FramsticksLib,
         args: argparse.Namespace,
         pset: gp.PrimitiveSetTyped,
+        if_forced_improv_save_best: bool,
         invalid_fitness=-999_999.0,
     ):
         super().__init__()
@@ -57,6 +59,7 @@ class OurToolbox(BasicToolbox):
         self.eval_criteria = args.criteria
         self.mock_test = args.MOCK_EVALS
         self.invalid_fitness = invalid_fitness
+        self.save_best = SaveBest() if if_forced_improv_save_best else None
 
         # self.should_stop = partial(
         self.early_stopper = EarlyStopper(self.args.early_stop, toolbox=self)
@@ -202,6 +205,12 @@ class OurToolbox(BasicToolbox):
 
     def override_nodes(self, *args, **kwargs):
         return override_nodes(*args, fillvalue="_", toolbox=self, **kwargs)
+    
+    # toolbox.register("get_best", save_best.get_best if args.forced_improv_global else default_get_best, toolbox=toolbox)
+    def get_best(self, population):
+        if self.save_best != None:
+            return self.save_best.get_best()
+        return tools.selBest(population, 1)[0]
 
 
 ###########
@@ -224,3 +233,13 @@ class OurToolbox(BasicToolbox):
     # toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
     # toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
     # toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
+    # save_best = SaveBest(toolbox) if args.forced_improv_global else None
+    # toolbox.register("get_best", save_best.get_best if args.forced_improv_global else default_get_best, toolbox=toolbox)
+    # toolbox.register("evaluate", 
+    #     evaluate, 
+    #     pset=pset, 
+    #     flib=framsLib, 
+    #     invalid_fitness=-999999.0, 
+    #     criteria=args.criteria, 
+    #     mock_test=args.MOCK_EVALS, 
+    #     save_best=save_best)

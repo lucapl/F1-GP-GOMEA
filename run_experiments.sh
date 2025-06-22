@@ -5,7 +5,7 @@
 echo "READ and ADJUST this script file"
 
 # Adjust this based on the number of CPU cores
-max_processes=4
+max_processes=6
 echo "Max processes: $max_processes"
 echo "Adjust this num ^ to the number of CPU cores"
 
@@ -14,11 +14,11 @@ experiments=$(seq 1 6)
 echo "Experiments: $experiments"
 echo "IMPORTANT: adjust this ^ to not overwrite old results"
 
-popsizes=50
+popsizes=100
 echo "Popsizes are: ${popsizes[@]}"
 
 # Output folder
-out_folder="./out_mut/"
+out_folder="./out_adapt_mut_nofi/"
 
 # Create output directory if it doesn't exist
 mkdir -p "$out_folder"
@@ -35,14 +35,14 @@ run_job() {
     
     # Run the command and redirect output to the log file
     (cd "$full_output" && python3.12 "$cwd/run_gomea_f1.py" \
-	-n 100 \
-	-e 7 \
+	-n 200 \
+	-e 200 \
 	-g 100 \
 	-p "$popsize" \
 	-v \
 	--count_nevals \
-	--fmut 4 \
-	--pmut 0.8 \
+	--fmut 2 \
+	--pmut 0.9 \
 	--sim_location "$cwd/framspy" \
 	--framslib "$cwd/Framsticks52" \
 	--sims "eval-allcriteria.sim" "eval-once.sim" "recording-body-coords.sim" \
