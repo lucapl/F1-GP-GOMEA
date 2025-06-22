@@ -120,7 +120,7 @@ def create_subtree(flib, pset, low=0, high=100, type_=None):
     return parse(generate_random(flib, n).replace(" ", ""), pset)
 
 
-def default_get_best(population):
+def default_get_best(population, **kwargs):
     return tools.selBest(population, 1)[0]
 
 
@@ -181,9 +181,16 @@ def main():
     toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
     toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
     toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
-    save_best = SaveBest() if args.forced_improv_global else None
-    toolbox.register("get_best", save_best.get_best if args.forced_improv_global else default_get_best)
-    toolbox.register("evaluate", evaluate, pset=pset, flib=framsLib, invalid_fitness=-999999.0, criteria=args.criteria, mock_test=args.MOCK_EVALS, save_best=save_best)
+    save_best = SaveBest(toolbox) if args.forced_improv_global else None
+    toolbox.register("get_best", save_best.get_best if args.forced_improv_global else default_get_best, toolbox=toolbox)
+    toolbox.register("evaluate", 
+        evaluate, 
+        pset=pset, 
+        flib=framsLib, 
+        invalid_fitness=-999999.0, 
+        criteria=args.criteria, 
+        mock_test=args.MOCK_EVALS, 
+        save_best=save_best)
 
     ####################
     # stats logging
@@ -214,7 +221,7 @@ def main():
     start_gen = 0
 
     pop = toolbox.population()
-    print(pop[0])
+    #print(pop[0])
 
     ########################
     # MAIN ALGORITHM
