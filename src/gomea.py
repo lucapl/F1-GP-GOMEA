@@ -5,6 +5,7 @@ import random
 from deap import base, creator, tools
 
 from src.linkage import LinkageModel
+from src.utils.stopping import EarlyStopper
 
 
 def load_checkpoint(checkpoint):
@@ -57,6 +58,8 @@ def eaGOMEA(
     if halloffame is not None:
         halloffame.update(population)
 
+    mutation_check = EarlyStopper(fmut, toolbox)
+
     if verbose:
         print(logbook.stream)
     # main algorithm
@@ -73,7 +76,7 @@ def eaGOMEA(
             toolbox.map(toolbox.genepool_optimal_mixing, population, lms, lpops)
         )
         # print(new_pop[0])
-        if gen % fmut == 0:
+        if mutation_check.shouldStop(new_pop):
             print("Mutation time!")
             new_pop = list(toolbox.map(toolbox.mutate, new_pop))
             invalid_ind = [ind for ind in new_pop if not ind.fitness.valid]
@@ -162,7 +165,7 @@ def gom(
             # improving_ind.fitness = toolbox.clone(cloned_ind.fitness)
 
     if not improvement and forcedImprov:
-        best = tools.selBest(population, 1)[0]
+        best = toolbox.get_best()#tools.selBest(population, 1)[0]
         if improving_ind != best:
             improving_ind = toolbox.forced_improvement(
                 improving_ind, linkage_model, best

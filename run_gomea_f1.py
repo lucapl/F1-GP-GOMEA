@@ -91,9 +91,12 @@ def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False):
 def mutate(individual, pset, pmut, toolbox, framsLib):
     if np.random.random() >= pmut:
         return individual
-    mutated = [str(gp.compile(individual, pset))]
-    mutated = framsLib.mutate(mutated)
-    mutated = parse(mutated[0].replace(" ",""), pset)
+    try:
+        mutated = [str(gp.compile(individual, pset))]
+        mutated = framsLib.mutate(mutated)
+        mutated = parse(mutated[0].replace(" ",""), pset)
+    except:
+        return individual
     ind = creator.Individual(mutated)
     # ind.fitness = toolbox.clone(individual.fitness)
     return ind
