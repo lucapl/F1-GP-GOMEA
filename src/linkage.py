@@ -1,14 +1,14 @@
-import numpy as np
-import random
-import math
 import itertools
-
+import math
+import random
 from collections import Counter
-from scipy.stats import spearmanr, pearsonr, entropy
-import scipy.cluster.hierarchy as scipy_hier
 
+import numpy as np
+import scipy.cluster.hierarchy as scipy_hier
+from scipy.stats import entropy, pearsonr, spearmanr
+
+from src.stats import calc_entropy, calculate_entropy_list, pearson_cor, spearman_cor
 from src.utils.fpcontrol import restore_fenv
-from src.stats import spearman_cor, pearson_cor, calculate_entropy_list, calc_entropy
 
 
 class LinkageModel():

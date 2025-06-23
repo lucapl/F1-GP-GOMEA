@@ -8,18 +8,19 @@ import numpy as np
 import pandas as pd
 from deap import base, creator, gp, tools
 from dotenv import load_dotenv
+from FramsticksLibCompetition import FramsticksLibCompetition
 
-# import framspy
-# from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
-from FramsticksLibCompetition import FramsticksLibCompetition  # this SHOULD work properly after `uv sync`
 from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
-from src.utils.fpcontrol import print_fenv_state, restore_fenv, save_fenv, fpenv_context_restore
-from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
-from src.utils.elitism import SaveBest
-
 from src.our_toolbox import OurToolbox
+from src.utils.elitism import SaveBest
+from src.utils.fpcontrol import fpenv_context_restore
+from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
+
+# from FramsticksLibCompetition import FramsticksLibCompetition
+# SHOULD work properly after `uv sync`
+# from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 
 load_dotenv()
 # default values for --framslib and --sim_location

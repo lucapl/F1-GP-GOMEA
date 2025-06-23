@@ -1,13 +1,13 @@
 import itertools
 import pickle
 import random
+from typing import TYPE_CHECKING
 
 from deap import base, creator, tools
 
 from src.linkage import LinkageModel, LinkageTreeFramsF1
 from src.utils.stopping import EarlyStopper
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:  # circular import
     from src.our_toolbox import OurToolbox
 

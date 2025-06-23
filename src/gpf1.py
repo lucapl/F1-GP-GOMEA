@@ -1,8 +1,9 @@
-from deap import gp
-import re
 import random
-from functools import partial
+import re
 from enum import Enum, auto
+from functools import partial
+
+from deap import gp
 
 
 def simple_parser(geno: str, in_paranthesis=False):

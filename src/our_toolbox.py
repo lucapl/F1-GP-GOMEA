@@ -12,11 +12,9 @@ from FramsticksLibCompetition import FramsticksLibCompetition
 from src.gomea import forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
+from src.utils.elitism import SaveBest
 from src.utils.fpcontrol import print_fenv_state, restore_fenv
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
-from src.utils.elitism import SaveBest
-
-# from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 
 # creator.create("FitnessMax", base.Fitness, weights=[1])
 # creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
