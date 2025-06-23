@@ -27,7 +27,7 @@ def eaGOMEA(
     halloffame=None,
     logbook=None,
     checkpoint_freq=None,
-    checkpoint_name=".\checkpoint_gomea_{gen}.pkl",
+    checkpoint_name="./checkpoint_gomea_{gen}.pkl",
     verbose=False,
     fmut=10,
 ):
