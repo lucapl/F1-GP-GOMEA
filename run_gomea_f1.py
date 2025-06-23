@@ -5,6 +5,7 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from deap import base, creator, gp, tools
 from dotenv import load_dotenv
 
@@ -137,15 +138,18 @@ def main():
     # MAIN ALGORITHM
     ########################
     try:
-        new_pop, logbook = eaGOMEA(pop, toolbox,
-        start_gen=start_gen,
-        logbook=logbook,
-        stats=mstats,
-        halloffame=hof,
-        fmut = args.fmut,
-        # checkpoint_freq=args.checkpoint_frequency,
-        # checkpoint_name=checkpoints_out,
-        verbose=args.verbose)
+        new_pop, logbook, _linkage_log = eaGOMEA(
+            pop,
+            toolbox,
+            start_gen=start_gen,
+            logbook=logbook,
+            stats=mstats,
+            halloffame=hof,
+            fmut=args.fmut,
+            # checkpoint_freq=args.checkpoint_frequency,
+            # checkpoint_name=checkpoints_out,
+            verbose=args.verbose,
+        )
     except Exception as err:
         print(f"Unexpected {err=}, {type(err)=}")
 
@@ -156,10 +160,52 @@ def main():
             f" and {toolbox.solution_cache_misses} simulated."
             )
 
+    # from rich import print as rprint
+    # rprint("\n\nLogbook: ", logbook)
+    # rprint("\n\nLogbook.chapters: ", logbook.chapters)
+
+    # log_df = pd.json_normalize({**dict(logbook), **dict(logbook.chapters)})
+    log_df = deap_log_with_multi_stats_to_df(logbook)
+    print("\n\nas data frame: ", log_df)
+    # parsed_args.out_prefix + "_stats.csv"
+    out_log = "test" + "_stats.csv"
+    log_df.to_csv(out_log, sep=";", index=False)
+    print("Saved", out_log)
+
     #######################
     # saving outputs
     #######################
     framsLib.end()
+
+
+def deap_log_with_multi_stats_to_df(logbook: tools.Logbook) -> pd.DataFrame:
+    records = []
+    # log_df = pd.DataFrame.from_records(logbook)  # without nesting
+    # log_df = pd.json_normalize(logbook)
+
+    # from rich import print as rprint
+
+    for each_row in logbook:
+        # gen, nevals
+        records.append(each_row)
+    # rprint("records: ", records)
+
+    sub_dfs = []
+    for chapter_name, ls_subrecords in logbook.chapters.items():
+        chapter_df = pd.DataFrame.from_records(ls_subrecords)
+        rename_dict = {
+            col: f"{chapter_name}_{col}"
+        }
+        chapter_df = chapter_df.rename(columns=rename_dict)
+        # rprint(f"\n{chapter_name} df:\n", chapter_df)
+        # rprint("...records were: ", ls_subrecords)
+        sub_dfs.append(chapter_df.set_index('gen'))
+
+    log_df = pd.DataFrame.from_records(records).set_index('gen')
+    log_df = log_df.join(sub_dfs, validate="one_to_one")
+    # result_df = log_df.merge(df, on='gen', how='outer')
+    # rprint("\n\n\njoined\n", log_df)
+    return log_df
 
 
 if __name__ == "__main__":

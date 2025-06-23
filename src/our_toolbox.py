@@ -9,7 +9,7 @@ from deap import base, creator, gp, tools
 from FramsticksLib import FramsticksLib  # type checking
 from FramsticksLibCompetition import FramsticksLibCompetition
 
-from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
+from src.gomea import forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
 from src.utils.fpcontrol import print_fenv_state, restore_fenv
