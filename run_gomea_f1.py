@@ -8,8 +8,9 @@ import numpy as np
 from deap import base, creator, gp, tools
 from dotenv import load_dotenv
 
-#import framspy
-from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
+# import framspy
+# from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
+from FramsticksLibCompetition import FramsticksLibCompetition  # this SHOULD work properly after `uv sync`
 from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
@@ -22,8 +23,8 @@ from src.our_toolbox import OurToolbox
 load_dotenv()
 # default values for --framslib and --sim_location
 ENV_FRAMSTICKS_DLL = os.getenv("FRAMSTICKS_DLL_PATH", "./Framsticks52")
-# ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
-ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")#str(framspy.__path__[0]))
+ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
+# ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", str(framspy.__path__[0]))
 
 
 def prepare_gomea_parser(parser):
