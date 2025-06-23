@@ -5,24 +5,28 @@ from functools import partial
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from deap import base, creator, gp, tools
 from dotenv import load_dotenv
+from FramsticksLibCompetition import FramsticksLibCompetition
 
-#import framspy
-from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
-from src.utils.fpcontrol import print_fenv_state, restore_fenv
-from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
+from src.our_toolbox import OurToolbox
 from src.utils.elitism import SaveBest
+from src.utils.fpcontrol import fpenv_context_restore
+from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
 
+# from FramsticksLibCompetition import FramsticksLibCompetition
+# SHOULD work properly after `uv sync`
+# from framspy.src.FramsticksLibCompetition import FramsticksLibCompetition
 
 load_dotenv()
 # default values for --framslib and --sim_location
 ENV_FRAMSTICKS_DLL = os.getenv("FRAMSTICKS_DLL_PATH", "./Framsticks52")
-# ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
-ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")#str(framspy.__path__[0]))
+ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
+# ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", str(framspy.__path__[0]))
 
 
 def prepare_gomea_parser(parser):
@@ -60,68 +64,6 @@ def prepare_gomea_parser(parser):
 
     return parser
 
-#original_control_word = save_fenv() # this is important to not cause floating point exceptions and others
-#toolbox = LinkageToolbox('build_linkage_model', 'override_nodes')
-#toolbox.define_default_linkages(CHARS, PREFIX, original_control_word)
-
-
-solution_cache={} # avoids wasting precious eval count
-
-def evaluate(ptree, pset, flib, invalid_fitness, criteria, mock_test=False, save_best=None):
-    try:
-        geno = str(gp.compile(ptree, pset))
-    except:
-        return (invalid_fitness,)
-    if geno in solution_cache:
-        return (solution_cache[geno],)
-    geno = [geno]
-    try:
-        valid = flib.isValidCreature(geno)[0]
-    except Exception:
-        print(geno)
-        raise Exception
-    if not valid:
-        return (invalid_fitness,)
-    # before running a creature through a simulation we ensure the genotype is valid
-    if not mock_test:
-        value = flib.evaluate(geno)[0]["evaluations"][''][criteria]
-    else:
-        value = random.expovariate()
-    solution_cache[geno[0]] = value
-    values = (value, )
-    if save_best != None:
-        save_best.check(ptree, values)
-    return values
-
-def mutate(individual, pset, pmut, toolbox, framsLib):
-    if np.random.random() >= pmut:
-        return individual
-    try:
-        mutated = [str(gp.compile(individual, pset))]
-        mutated = framsLib.mutate(mutated)
-        mutated = parse(mutated[0].replace(" ",""), pset)
-    except:
-        return individual
-    ind = creator.Individual(mutated)
-    # ind.fitness = toolbox.clone(individual.fitness)
-    return ind
-
-
-def generate_random(flib, parts: tuple[int, int], neurons: tuple[int, int], iters: int, geno_format="1"):
-    return flib.getRandomGenotype(flib.getSimplest(geno_format), *parts, *neurons, iters, return_even_if_failed=True)
-
-
-def create_ind(flib, pset, parts: tuple[int, int], neurons: tuple[int, int], iters: int, geno_format="1"):
-    return parse(generate_random(flib, parts, neurons, iters, geno_format).replace(" ", ""), pset)
-
-
-def create_subtree(flib, pset, low=0, high=100, type_=None):
-    n = np.random.randint(low, high)
-    return parse(generate_random(flib, n).replace(" ", ""), pset)
-
-
-def default_get_best(population, **kwargs):
-    return tools.selBest(population, 1)[0]
 
 
 def main():
@@ -143,13 +85,26 @@ def main():
         for sim_file in args.sims
     ])
 
-    # engine
-    # print_fenv_state("Before loading framsticks")
-    framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
-    framsLib.TEST_FUNCTION = args.test_function
-    framsLib.SIMPLE_FITNESS_FORMAT = False
-    # print_fenv_state("After loading framsticks")
-    # restore_fenv(original_control_word)
+    with fpenv_context_restore("loading Framsticks DLL"):
+        framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
+        framsLib.TEST_FUNCTION = args.test_function
+        framsLib.SIMPLE_FITNESS_FORMAT = False
+
+    # sometimes pandas crashes at print(df)...
+    # print_fenv_state("Verify")
+    # ✅ In pure Python: Use NumPy’s seterr
+    # With NumPy, you can configure how it responds to FP events:
+    #
+    # Raise exceptions on specified FP errors
+    np.seterr(all='raise')  # or specify individually, e.g. invalid='raise'
+    # np.seterr(all='print')
+
+    # After this, operations leading to nan, inf, divide-by-zero etc. will raise `FloatingPointError`
+    # You can also wrap operations:
+    # with np.errstate(divide='raise', invalid='raise'):
+    #     x = np.log(-1)  # triggers FloatingPointError: invalid value encountered in log
+    #     print("\n\n\n", flush=True)
+
 
     #####################
     # deap definitions
@@ -159,38 +114,7 @@ def main():
     creator.create("FitnessMax", base.Fitness, weights=[1])
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
-    toolbox = base.Toolbox()
-    early_stopper = EarlyStopper(args.early_stop, toolbox)
-    # basic operators
-    toolbox.register("random_individual", create_ind, flib=framsLib, pset=pset, iters=args.initial_geno_mutations, parts=args.parts, neurons=args.neurons)
-    toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.random_individual)
-    toolbox.register("population", tools.initRepeat, list, toolbox.individual, args.popsize)
-
-    # evaluation for testing
-    max_len = args.initial_geno_mutations
-
-    # early stopper or max itera
-    toolbox.register("should_stop", partial(earlyStoppingOrMaxIter, max_gen=args.ngen, early_stopper=EarlyStopper(args.early_stop, toolbox)))
-
-    # gomea operators
-    isForcedImprov = not args.no_forced_improv
-    print("Is forced improvent on?: ", isForcedImprov)
-    toolbox.register("genepool_optimal_mixing", gom, toolbox=toolbox, forcedImprov=isForcedImprov)
-    toolbox.register("forced_improvement", forced_improvement, toolbox=toolbox)
-    toolbox.register("build_linkage_model", LinkageTreeFramsF1, original_control_word=None)
-    toolbox.register("override_nodes", override_nodes, fillvalue="_", toolbox=toolbox)
-    toolbox.register("mutate", mutate, pset=pset, pmut=args.pmut, toolbox=toolbox, framsLib=framsLib)
-    toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
-    save_best = SaveBest(toolbox) if args.forced_improv_global else None
-    toolbox.register("get_best", save_best.get_best if args.forced_improv_global else default_get_best, toolbox=toolbox)
-    toolbox.register("evaluate", 
-        evaluate, 
-        pset=pset, 
-        flib=framsLib, 
-        invalid_fitness=-999999.0, 
-        criteria=args.criteria, 
-        mock_test=args.MOCK_EVALS, 
-        save_best=save_best)
+    toolbox = OurToolbox(args=args, framsLib=framsLib, pset=pset, if_forced_improv_save_best=args.forced_improv_global)
 
     ####################
     # stats logging
@@ -227,22 +151,83 @@ def main():
     # MAIN ALGORITHM
     ########################
     try:
-        new_pop, logbook = eaGOMEA(pop, toolbox,
-        start_gen=start_gen,
-        logbook=logbook,
-        stats=mstats,
-        halloffame=hof,
-        fmut = args.fmut,
-        # checkpoint_freq=args.checkpoint_frequency,
-        # checkpoint_name=checkpoints_out,
-        verbose=args.verbose)
+        new_pop, logbook, _linkage_log = eaGOMEA(
+            pop,
+            toolbox,
+            start_gen=start_gen,
+            logbook=logbook,
+            stats=mstats,
+            halloffame=hof,
+            fmut=args.fmut,
+            # checkpoint_freq=args.checkpoint_frequency,
+            # checkpoint_name=checkpoints_out,
+            verbose=args.verbose,
+        )
     except Exception as err:
         print(f"Unexpected {err=}, {type(err)=}")
+
+    if True:
+        _cached_eval_ratio = toolbox.solution_cache_hits / (toolbox.solution_cache_hits + toolbox.solution_cache_misses)
+        print(f"Eval. cache stats: {_cached_eval_ratio:.1%}  "
+            f"{toolbox.solution_cache_hits:5} reused"
+            f" and {toolbox.solution_cache_misses} simulated."
+            )
+
+    # from rich import print as rprint
+    # rprint("\n\nLogbook: ", logbook)  # [{'gen': 0, 'nevals': 123}, ...]
+    # # defaultdict with 'fitness', 'genotype_length'
+    # rprint("\n\nLogbook.chapters: ", logbook.chapters)
+
+    # log_df = pd.json_normalize({**dict(logbook), **dict(logbook.chapters)})
+    log_df = deap_log_with_multi_stats_to_df(logbook)
+    # print("\n\nas data frame: ", log_df.shape)
+    # print(log_df.dtypes)
+    print("\n\n")
+    print(log_df.describe())
+    print()
+
+    # parsed_args.out_prefix + "_stats.csv"
+    out_log = "test" + "_stats.csv"
+    log_df.to_csv(out_log, sep=";", index=False)
+    print("Saved", out_log)
 
     #######################
     # saving outputs
     #######################
     framsLib.end()
+
+
+def deap_log_with_multi_stats_to_df(logbook: tools.Logbook) -> pd.DataFrame:
+    records = []
+    # log_df = pd.DataFrame.from_records(logbook)  # without nesting
+    # log_df = pd.json_normalize(logbook)
+
+    # from rich import print as rprint
+
+    for each_row in logbook:
+        # gen, nevals
+        records.append(each_row)
+    # rprint("records: ", records)
+
+    sub_dfs = []
+    for chapter_name, ls_subrecords in logbook.chapters.items():
+        chapter_df = pd.DataFrame.from_records(ls_subrecords)
+        rename_dict = {
+            col: f"{chapter_name}_{col}"
+            for col in chapter_df.columns if col not in ("gen", "nevals")
+            #  if col != "gen"
+        }
+        chapter_df = chapter_df.drop(columns=["nevals"])
+        chapter_df = chapter_df.rename(columns=rename_dict)
+        # rprint(f"\n{chapter_name} df:\n", chapter_df)
+        # rprint("...records were: ", ls_subrecords)
+        sub_dfs.append(chapter_df.set_index('gen'))
+
+    log_df = pd.DataFrame.from_records(records).set_index('gen')
+    log_df = log_df.join(sub_dfs, validate="one_to_one")
+    # result_df = log_df.merge(df, on='gen', how='outer')
+    # rprint("\n\n\njoined\n", log_df)
+    return log_df
 
 
 if __name__ == "__main__":
