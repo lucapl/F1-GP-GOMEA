@@ -15,7 +15,7 @@ from FramsticksLibCompetition import FramsticksLibCompetition  # this SHOULD wor
 from src.gomea import eaGOMEA, forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
-from src.utils.fpcontrol import print_fenv_state, restore_fenv
+from src.utils.fpcontrol import print_fenv_state, restore_fenv, save_fenv, fpenv_context_restore
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
 from src.utils.elitism import SaveBest
 
@@ -63,7 +63,6 @@ def prepare_gomea_parser(parser):
 
     return parser
 
-#original_control_word = save_fenv() # this is important to not cause floating point exceptions and others
 
 
 def main():
@@ -85,13 +84,26 @@ def main():
         for sim_file in args.sims
     ])
 
-    # engine
-    # print_fenv_state("Before loading framsticks")
-    framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
-    framsLib.TEST_FUNCTION = args.test_function
-    framsLib.SIMPLE_FITNESS_FORMAT = False
-    # print_fenv_state("After loading framsticks")
-    # restore_fenv(original_control_word)
+    with fpenv_context_restore("loading Framsticks DLL"):
+        framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
+        framsLib.TEST_FUNCTION = args.test_function
+        framsLib.SIMPLE_FITNESS_FORMAT = False
+
+    # sometimes pandas crashes at print(df)...
+    # print_fenv_state("Verify")
+    # ✅ In pure Python: Use NumPy’s seterr
+    # With NumPy, you can configure how it responds to FP events:
+    #
+    # Raise exceptions on specified FP errors
+    np.seterr(all='raise')  # or specify individually, e.g. invalid='raise'
+    # np.seterr(all='print')
+
+    # After this, operations leading to nan, inf, divide-by-zero etc. will raise `FloatingPointError`
+    # You can also wrap operations:
+    # with np.errstate(divide='raise', invalid='raise'):
+    #     x = np.log(-1)  # triggers FloatingPointError: invalid value encountered in log
+    #     print("\n\n\n", flush=True)
+
 
     #####################
     # deap definitions
@@ -161,12 +173,18 @@ def main():
             )
 
     # from rich import print as rprint
-    # rprint("\n\nLogbook: ", logbook)
+    # rprint("\n\nLogbook: ", logbook)  # [{'gen': 0, 'nevals': 123}, ...]
+    # # defaultdict with 'fitness', 'genotype_length'
     # rprint("\n\nLogbook.chapters: ", logbook.chapters)
 
     # log_df = pd.json_normalize({**dict(logbook), **dict(logbook.chapters)})
     log_df = deap_log_with_multi_stats_to_df(logbook)
-    print("\n\nas data frame: ", log_df)
+    # print("\n\nas data frame: ", log_df.shape)
+    # print(log_df.dtypes)
+    print("\n\n")
+    print(log_df.describe())
+    print()
+
     # parsed_args.out_prefix + "_stats.csv"
     out_log = "test" + "_stats.csv"
     log_df.to_csv(out_log, sep=";", index=False)
@@ -195,7 +213,10 @@ def deap_log_with_multi_stats_to_df(logbook: tools.Logbook) -> pd.DataFrame:
         chapter_df = pd.DataFrame.from_records(ls_subrecords)
         rename_dict = {
             col: f"{chapter_name}_{col}"
+            for col in chapter_df.columns if col not in ("gen", "nevals")
+            #  if col != "gen"
         }
+        chapter_df = chapter_df.drop(columns=["nevals"])
         chapter_df = chapter_df.rename(columns=rename_dict)
         # rprint(f"\n{chapter_name} df:\n", chapter_df)
         # rprint("...records were: ", ls_subrecords)

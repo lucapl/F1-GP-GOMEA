@@ -1,6 +1,8 @@
 import ctypes
 import os
 import sys
+from contextlib import contextmanager
+
 import numpy as np
 
 if os.name == "nt":  # Windows
@@ -57,3 +59,36 @@ def print_fenv_state(stage):
             print(f"[{stage}] Floating-Point Environment: {bytes(state.data).hex()}")
     except Exception as e:
         print(f"[{stage}] Error: {e}")
+
+
+@contextmanager
+def fpenv_context_restore(name="", verbose=True):
+    """
+    Wrapper to restore floating-point exception state
+    after `init()` from Framsticks DLL.
+
+    This is important to avoid floating point exceptions and others.
+    
+    ## Usage
+    ```
+    with fpenv_context_restore():
+        framsLib = ...
+    ```
+
+    ## See also
+    [numpy.seterr function](https://numpy.org/doc/stable/reference/generated/numpy.seterr.html)
+
+    ```
+    orig_settings = np.seterr(all='ignore')
+    ```
+    """
+    original_control_word = save_fenv()
+    if verbose:
+        print_fenv_state(f"Before {name}")
+    try:
+        yield
+    finally:
+        if verbose:
+            print_fenv_state(f"After {name}")
+        restore_fenv(original_control_word)
+
