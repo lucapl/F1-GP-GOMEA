@@ -117,7 +117,7 @@ class LinkageTree(CommonLinkageModel):
 class LinkageTreeFramsF1(LinkageTree):
     def __init__(self, population: list, original_control_word=None):
         self.original_control_word = original_control_word
-        if self.original_control_word != None:
+        if self.original_control_word is not None:
             restore_fenv(original_control_word)
         super().__init__(population)
 

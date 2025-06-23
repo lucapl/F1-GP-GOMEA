@@ -82,7 +82,7 @@ def parse(geno:str, pset):
 
     #print(geno)
     mapped = [map_to(symbol) for symbol in parsed]
-    mapped = [s for s in mapped if s != None]
+    mapped = [s for s in mapped if s is not None]
     return mapped
 
 
@@ -144,7 +144,7 @@ class ModifierLower(AutoName):
     q = auto()  # Twist
     c = auto()  # Curvedness
 
-    l = auto()  # Length
+    l = auto()  # Length  # noqa: E741  Ambiguous variable name: `l`
     f = auto()  # Friction
     w = auto()  # Weight
 

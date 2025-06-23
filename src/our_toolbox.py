@@ -208,7 +208,7 @@ class OurToolbox(BasicToolbox):
     
     # toolbox.register("get_best", save_best.get_best if args.forced_improv_global else default_get_best, toolbox=toolbox)
     def get_best(self, population):
-        if self.save_best != None:
+        if self.save_best is not None:
             return self.save_best.get_best()
         return tools.selBest(population, 1)[0]
 
