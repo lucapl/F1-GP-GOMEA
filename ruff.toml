@@ -1,6 +1,7 @@
 exclude = [
     "framspy/", # ignored
 ]
+[lint]
 # Ignore unused imports
 ignore = ["F401", "E401"]
 
