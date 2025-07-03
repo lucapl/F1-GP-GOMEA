@@ -1,8 +1,9 @@
-from deap import gp
-import re
 import random
-from functools import partial
+import re
 from enum import Enum, auto
+from functools import partial
+
+from deap import gp
 
 
 def simple_parser(geno: str, in_paranthesis=False):
@@ -60,6 +61,12 @@ def parse_neuron(neuron_inside: str | list[str], is_first=True):
     return thing + parse_neuron(neuron_inside[1:], is_first=False)
 
 
+# partial(lambda s: s, symbol)
+# raises RuntimeWarning: Ephemeral nint function cannot be pickled
+# so without lambdas:
+def identity(x):
+    return x
+
 def parse(geno:str, pset):
     nodes = {prim.name: prim for prim in pset.primitives[str] + pset.terminals[str] + pset.terminals[NeuronProperty] + pset.terminals[NeuronType]}
     #print(pset.primitives)
@@ -67,14 +74,16 @@ def parse(geno:str, pset):
     #print(parsed)
     def map_to(symbol):
         if isinstance(symbol, int):
-            return gp.MetaEphemeral("nint", partial(lambda s: s, symbol))()
+            return gp.MetaEphemeral("nint", partial(identity, symbol))()
+            # return gp.MetaEphemeral("nint", partial(lambda s: s, symbol))()
         elif isinstance(symbol, float):
-            return gp.MetaEphemeral("nfloat", partial(lambda s: s, symbol))()
+            return gp.MetaEphemeral("nfloat", partial(identity, symbol))()
+            # return gp.MetaEphemeral("nfloat", partial(lambda s: s, symbol))()
         return nodes.get(symbol, None)
 
     #print(geno)
     mapped = [map_to(symbol) for symbol in parsed]
-    mapped = [s for s in mapped if s != None]
+    mapped = [s for s in mapped if s is not None]
     return mapped
 
 
@@ -136,7 +145,7 @@ class ModifierLower(AutoName):
     q = auto()  # Twist
     c = auto()  # Curvedness
 
-    l = auto()  # Length
+    l = auto()  # Length  # noqa: E741  Ambiguous variable name: `l`
     f = auto()  # Friction
     w = auto()  # Weight
 
@@ -175,8 +184,17 @@ def create_f1_pset():
     pset.addPrimitive(add_neuron, [NeuronType, str, str], str, "neuron")
     pset.addPrimitive(partial(concat, sep=","), [str, str], str, "comma")
     pset.addPrimitive(branch, [str], str, "branch")
-    pset.addEphemeralConstant("nint", lambda: random.randint(-20, 20), int)
-    pset.addEphemeralConstant("nfloat", lambda: random.uniform(-10.0, 10.0), float)
+
+    # pset.addEphemeralConstant("nint", lambda: random.randint(-20, 20), int)
+    # pset.addEphemeralConstant("nfloat", lambda: random.uniform(-10.0, 10.0), float)
+    def nint_random():
+        return random.randint(-20, 20)
+
+    def nfloat_random():
+        return random.uniform(-10.0, 10.0)
+
+    pset.addEphemeralConstant("nint", nint_random, int)
+    pset.addEphemeralConstant("nfloat", nfloat_random, float)
     for nt in NeuronType:
         pset.addTerminal(nt, NeuronType, name="nt"+nt.name)
     for np in NeuronProperty:

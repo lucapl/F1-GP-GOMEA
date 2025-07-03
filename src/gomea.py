@@ -1,11 +1,23 @@
 import itertools
 import pickle
 import random
+from typing import TYPE_CHECKING
 
 from deap import base, creator, tools
 
-from src.linkage import LinkageModel
+from src.linkage import LinkageModel, LinkageTreeFramsF1
 from src.utils.stopping import EarlyStopper
+
+if TYPE_CHECKING:  # circular import
+    from src.our_toolbox import OurToolbox
+
+
+# def flatten_dict(d):  # Similar to pd.json_normalize()
+#     r = {}
+#     for k, v in d.items():
+#         for k2, v2 in v.items():
+#             r[k + "." + k2] = v2
+#     return r
 
 
 def load_checkpoint(checkpoint):
@@ -21,16 +33,16 @@ def load_checkpoint(checkpoint):
 
 def eaGOMEA(
     population: list,
-    toolbox: base.Toolbox,
+    toolbox: "OurToolbox",  # base.Toolbox,
     start_gen=0,
     stats=None,
     halloffame=None,
-    logbook=None,
+    logbook: tools.Logbook | None = None,
     checkpoint_freq=None,
-    checkpoint_name=".\checkpoint_gomea_{gen}.pkl",
+    checkpoint_name="./checkpoint_gomea_{gen}.pkl",
     verbose=False,
     fmut=10,
-):
+) -> tuple[list, tools.Logbook, list[list]]:
     """
     Tudelft GPGOMEA paper algorithm using deap
 
@@ -52,21 +64,27 @@ def eaGOMEA(
         ind.fitness.values = fit
 
     record = stats.compile(population) if stats else {}
+    # from rich import print as rprint
+    # rprint("First Multistats record: ", record)
     if start_gen not in logbook.select("gen"):
+        # logbook.record(gen=start_gen, nevals=len(invalid_ind), **flatten_dict(record))
         logbook.record(gen=start_gen, nevals=len(invalid_ind), **record)
+    linkage_log = []
+    linkage_log.append([])  # empty for index 0 - match Logbook
 
     if halloffame is not None:
         halloffame.update(population)
 
     mutation_check = EarlyStopper(fmut, toolbox)
 
-    if verbose:
-        print(logbook.stream)
+    # if verbose:
+    #     print(logbook.stream)  # maybe won't shift??
+
     # main algorithm
     gen = start_gen + 1
     while not toolbox.should_stop(population, gen):
         # algorithm operators
-        linkage_model = toolbox.build_linkage_model(population)
+        linkage_model: LinkageTreeFramsF1 = toolbox.build_linkage_model(population)
         lms, lpops = (
             [linkage_model for _ in range(len(population))],
             [population for _ in range(len(population))],
@@ -84,7 +102,7 @@ def eaGOMEA(
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
         # print(new_pop[0])
-        
+
         nevals = toolbox.get_evaluations()
         population = new_pop
 
@@ -92,13 +110,20 @@ def eaGOMEA(
         if halloffame is not None:
             halloffame.update(population)
         record = stats.compile(population) if stats else {}
-        record |= linkage_model.get_stats()
         logbook.record(gen=gen, nevals=nevals, **record)
+        # from rich import print as rprint
+        # rprint("Multistats record: ", record)
+        # logbook.record(gen=gen, nevals=nevals, **flatten_dict(record))
+        # if False:
+        # record |= linkage_model.get_stats()
+        current_linkage = linkage_model.get_stats()
+        # rprint("Linkage_tree: ", current_linkage['linkage_tree'])
+        linkage_log.append(current_linkage["linkage_tree"])
 
         if verbose:
             print(logbook.stream)
 
-        if checkpoint_freq != None and gen % checkpoint_freq == 0:
+        if checkpoint_freq is not None and gen % checkpoint_freq == 0:
             cp = dict(
                 population=population,
                 generation=gen,
@@ -111,8 +136,8 @@ def eaGOMEA(
                 pickle.dump(cp, cp_file)
         gen += 1
     # toolbox.mutate(population[0])
-    #print(type(population), str(population[0]))
-    return population, logbook
+    # print(type(population), str(population[0]))
+    return population, logbook, linkage_log
 
 
 def gom(
