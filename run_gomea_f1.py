@@ -30,7 +30,7 @@ ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
 # ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", str(framspy.__path__[0]))
 
 
-def prepare_gomea_parser(parser):
+def prepare_gomea_parser(parser: argparse.ArgumentParser):
     # fmt: off
     parser.add_argument('-n', '--ngen', default=15, type=int, help="Number of generations to rund")
     parser.add_argument('-p', '--popsize', default=20, type=int, help="Size of population")
@@ -213,11 +213,18 @@ def main():
 
     # log_df = pd.json_normalize({**dict(logbook), **dict(logbook.chapters)})
     log_df = deap_log_with_multi_stats_to_df(logbook)
-    # print("\n\nas data frame: ", log_df.shape)
-    # print(log_df.dtypes)
-    print("\n\n")
-    print(log_df.describe())
-    print()
+    if args.verbose:
+        try:
+            from rich import print as rprint
+        except ImportError:
+            rprint = print
+
+        print("\n\nLogbook as data frame: ", log_df.shape)
+        rprint(log_df)
+        # print(log_df.dtypes)
+        print("\n\n")
+        rprint(log_df.describe())
+        print()
 
     # parsed_args.out_prefix + "_stats.csv"
     out_log = "test" + "_stats.csv"
