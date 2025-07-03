@@ -67,6 +67,8 @@ class OurToolbox(BasicToolbox):
         "how many evalutions were cached?"
         self.solution_cache_misses = 0
 
+        self.n_mock_evals = 0
+
     def should_stop(self, population, gen):
         return earlyStoppingOrMaxIter(
             population=population,
@@ -146,8 +148,9 @@ class OurToolbox(BasicToolbox):
         # ind.fitness = toolbox.clone(individual.fitness)
         return ind
 
-    # toolbox.register("get_evaluations", framsLib.get_evals if args.count_nevals else lambda: 0)
     def get_evaluations(self) -> int:
+        if self.mock_test:
+            return self.n_mock_evals
         if self.args.count_nevals:
             # if isinstance(self.framsLib, FramsticksLibCompetition):
             return self.framsLib.get_evals()
@@ -180,12 +183,13 @@ class OurToolbox(BasicToolbox):
         if not valid:
             return (self.invalid_fitness,)
         # before running a creature through a simulation we ensure the genotype is valid
-        if not self.mock_test:
+        if self.mock_test:
+            value = random.expovariate()
+            self.n_mock_evals += 1
+        else:
             # value = self.flib.evaluate(geno)[0]["evaluations"][""][criteria]
             with fpenv_context_restore(verbose=False):
                 value = self.flib.evaluate(geno)[0]["evaluations"][""][self.eval_criteria]
-        else:
-            value = random.expovariate()
         solution_cache[geno[0]] = value
         return (value,)
 
