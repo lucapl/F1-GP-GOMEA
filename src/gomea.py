@@ -34,111 +34,20 @@ def load_checkpoint(checkpoint):
         random.setstate(cp["rndstate"])
     return population, start_gen, halloffame, logbook
 
-
-def eaGOMEASubpop(
-    populations: list[list],
-    toolbox: base.Toolbox,
-    logbook=None,
-    fmut=10,
-    popsize=50,
-):
-    """
-    Tudelft GPGOMEA paper algorithm using deap
-
-    toolbox funcs to register:
-    - genepool_optimal_mixing
-    - evaluate
-    - build_linkage_model
-    - should_stop - main loop stopping condition
-    """
-    # evaluate not evaluated individuals
-    for pop in populations:
-        invalid_ind = [ind for ind in pop if not ind.fitness.valid]
-        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-        for ind, fit in zip(invalid_ind, fitnesses):
-            ind.fitness.values = fit
-
-    gen = 1
-    nevals = 0
-    while nevals < 100000:
-        for pi, pop in enumerate(populations):
-            print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
-            # algorithm operators
-            print("Linkage...", end=" ")
-            linkage_model = LinkageTreeFramsF1(pop, original_control_word=None)
-            lms, lpops = (
-                [linkage_model for _ in range(len(pop))],
-                [pop for _ in range(len(pop))],
-            )
-            print("mixing...")
-            new_pop = list(
-                toolbox.map(toolbox.genepool_optimal_mixing, pop, lms, lpops)
-            )
-            if gen % fmut == 0:
-                print("Mutation time!")
-                new_pop = list(toolbox.map(toolbox.mutate, new_pop))
-                invalid_ind = [ind for ind in new_pop if not ind.fitness.valid]
-                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-                for ind, fit in zip(invalid_ind, fitnesses):
-                    ind.fitness.values = fit
-
-            populations[pi] = new_pop
-            nevals = toolbox.get_evaluations()
-
-            pop_str = [str(ind) for ind in new_pop]
-            entropy = calc_entropy(pop_str)
-            uniqueness = calc_uniqueness(pop_str)
-            print(f"Entropy: {entropy:.4f}, Uniqueness: {uniqueness:.4f}")
-
-            if uniqueness < 0.2:
-                print("Uniqueness is low - migrating some individuals from other pops")
-                new_population = []
-                # 1/4 of the population is for sure from the population itself
-                new_population.extend(random.choices(new_pop, k=popsize // 4))
-                # the rest are filled randomly from other populations
-                while len(new_population) < popsize:
-                    pop_index = random.randint(0, len(populations) - 1)
-                    ind = random.choice(populations[pop_index])
-                    if ind not in new_population:
-                        new_population.append(ind)
-
-            fits = [ind.fitness.values[0] for ind in new_pop]
-            mean_fits = np.mean(fits)
-            std_fits = np.std(fits)
-            min_fits = np.min(fits)
-            max_fits = np.max(fits)
-            print(
-                f"Mean Fitness: {mean_fits:.4f} +/- {std_fits:.4f} "
-                f"(min: {min_fits:.4f}, max: {max_fits:.4f})"
-            )
-
-            print(f"nevals: {nevals}/100000")
-            # calculate similarity between populations
-            for j in range(pi + 1, len(populations)):
-                sim = IoU(pop_str, [str(ind) for ind in populations[j]])
-                print(f"IoU({pi + 1}, {j + 1}) = {sim:.4f},", end=" ")
-                if sim > 0.8:
-                    print("Populations are too similiar, removing one of them...")
-                    populations[pi] = toolbox.population(n=popsize)
-                    break
-
-            print("\n")
-
-        gen += 1
-    return populations, logbook
-
-
 def eaGOMEA(
-    population: list,
+    populations: list[list],
     toolbox: "OurToolbox",  # base.Toolbox,
-    start_gen=0,
     stats=None,
     halloffame=None,
     logbook: tools.Logbook | None = None,
-    checkpoint_freq=None,
-    checkpoint_name="./checkpoint_gomea_{gen}.pkl",
-    verbose=False,
     fmut=10,
+    popsize=50,
+    uniq_threshold=0.2,
+    sim_threshold=0.8,
+    verbose=False,
+    # start_gen=0,
+    # checkpoint_freq=None,  # TODO: checkpointing code worked for 1 pop. only
+    # checkpoint_name="./checkpoint_gomea_{gen}.pkl",
 ) -> tuple[list, tools.Logbook, list[list]]:
     """
     Tudelft GPGOMEA paper algorithm using deap
@@ -155,59 +64,109 @@ def eaGOMEA(
     logbook.header = ["gen"] + (stats.fields if stats else [])
 
     # evaluate not evaluated individuals
-    invalid_ind = [ind for ind in population if not ind.fitness.valid]
-    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-    for ind, fit in zip(invalid_ind, fitnesses):
-        ind.fitness.values = fit
+    for pop in populations:
+        invalid_ind = [ind for ind in pop if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
 
-    record = stats.compile(population) if stats else {}
+    mega_pop = sum(populations, [])
+    record = stats.compile(mega_pop) if stats else {}
     # from rich import print as rprint
     # rprint("First Multistats record: ", record)
-    if start_gen not in logbook.select("gen"):
+    # if start_gen not in logbook.select("gen"):  # TODO: missing checkpointing
         # logbook.record(gen=start_gen, nevals=len(invalid_ind), **flatten_dict(record))
-        logbook.record(gen=start_gen, nevals=len(invalid_ind), **record)
+    logbook.record(gen=0, nevals=len(invalid_ind), **record)
     linkage_log = []
     linkage_log.append([])  # empty for index 0 - match Logbook
 
     if halloffame is not None:
-        halloffame.update(population)
-
-    mutation_check = EarlyStopper(fmut, toolbox)
+        halloffame.update(mega_pop)
 
     # if verbose:
     #     print(logbook.stream)  # maybe won't shift??
 
-    # main algorithm
-    gen = start_gen + 1
-    while not toolbox.should_stop(population, gen):
-        # algorithm operators
-        linkage_model: LinkageTreeFramsF1 = toolbox.build_linkage_model(population)
-        lms, lpops = (
-            [linkage_model for _ in range(len(population))],
-            [population for _ in range(len(population))],
-        )
-        # toolboxes = [toolbox for _ in range(len(population))]
-        new_pop = list(
-            toolbox.map(toolbox.genepool_optimal_mixing, population, lms, lpops)
-        )
-        # print(new_pop[0])
-        if mutation_check.shouldStop(new_pop):
-            print("Mutation time!")
-            new_pop = list(toolbox.map(toolbox.mutate, new_pop))
-            invalid_ind = [ind for ind in new_pop if not ind.fitness.valid]
-            fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
-            for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness.values = fit
-        # print(new_pop[0])
+    mutation_check = EarlyStopper(fmut, toolbox)  # TODO: multiple per sub.pop.?
 
-        nevals = toolbox.get_evaluations()
-        population = new_pop
+    gen = 1
+    nevals = 0
+    # gen = start_gen + 1
+    # while nevals < 100000:
+    while not toolbox.should_stop(populations, gen):
+        for pi, pop in enumerate(populations):
+            #print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
+            # algorithm operators
+            # linkage_model = LinkageTreeFramsF1(pop, original_control_word=None)
+            linkage_model: LinkageTreeFramsF1 = toolbox.build_linkage_model(pop)
+            lms, lpops = (
+                [linkage_model for _ in range(len(pop))],
+                [pop for _ in range(len(pop))],
+            )
+            #print("mixing...")
+            new_pop = list(
+                toolbox.map(toolbox.genepool_optimal_mixing, pop, lms, lpops)
+            )
+            # if gen % fmut == 0:
+            if mutation_check.shouldStop(new_pop):
+                print("Mutation time!")
+                new_pop = list(toolbox.map(toolbox.mutate, new_pop))
+                invalid_ind = [ind for ind in new_pop if not ind.fitness.valid]
+                fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+                for ind, fit in zip(invalid_ind, fitnesses):
+                    ind.fitness.values = fit
 
-        # logging and checkpointing further...
+            populations[pi] = new_pop
+            nevals = toolbox.get_evaluations()
+
+            # only migrate with more then 1 population
+            if len(populations) <= 1:
+                break
+
+            pop_str = [str(ind) for ind in new_pop]
+            entropy = calc_entropy(pop_str)
+            uniqueness = calc_uniqueness(pop_str)
+            #print(f"Entropy: {entropy:.4f}, Uniqueness: {uniqueness:.4f}")
+
+            if uniqueness < uniq_threshold:
+                print("Uniqueness is low - migrating some individuals from other pops")
+                new_population = []
+                # 1/4 of the population is for sure from the population itself
+                new_population.extend(random.choices(new_pop, k=popsize // 4))
+                # the rest are filled randomly from other populations
+                while len(new_population) < popsize:
+                    pop_index = random.randint(0, len(populations) - 1)
+                    ind = random.choice(populations[pop_index])
+                    if ind not in new_population:
+                        new_population.append(ind)
+
+            # fits = [ind.fitness.values[0] for ind in new_pop]
+            # mean_fits = np.mean(fits)
+            # std_fits = np.std(fits)
+            # min_fits = np.min(fits)
+            # max_fits = np.max(fits)
+            # print(
+            #     f"Mean Fitness: {mean_fits:.4f} +/- {std_fits:.4f} "
+            #     f"(min: {min_fits:.4f}, max: {max_fits:.4f})"
+            # )
+
+            # print(f"nevals: {nevals}/100000")
+            # calculate similarity between populations
+            for j in range(pi + 1, len(populations)):
+                sim = IoU(pop_str, [str(ind) for ind in populations[j]])
+                # print(f"IoU({pi + 1}, {j + 1}) = {sim:.4f},", end=" ")
+                if sim > sim_threshold:
+                    print("Populations are too similiar, removing one of them...")
+                    populations[pi] = toolbox.population(n=popsize)
+                    break
+
+        mega_pop = sum(populations, [])
+
         if halloffame is not None:
-            halloffame.update(population)
-        record = stats.compile(population) if stats else {}
+            halloffame.update(mega_pop)
+        record = stats.compile(mega_pop) if stats else {}
+        record |= linkage_model.get_stats()
         logbook.record(gen=gen, nevals=nevals, **record)
+        
         # from rich import print as rprint
         # rprint("Multistats record: ", record)
         # logbook.record(gen=gen, nevals=nevals, **flatten_dict(record))
@@ -219,23 +178,12 @@ def eaGOMEA(
 
         if verbose:
             print(logbook.stream)
+        
+        # if checkpoint_freq is not None ...
 
-        if checkpoint_freq is not None and gen % checkpoint_freq == 0:
-            cp = dict(
-                population=population,
-                generation=gen,
-                halloffame=halloffame,
-                logbook=logbook,
-                rndstate=random.getstate(),
-            )
-
-            with open(checkpoint_name.format(gen=gen), "wb") as cp_file:
-                pickle.dump(cp, cp_file)
         gen += 1
-    # toolbox.mutate(population[0])
-    # print(type(population), str(population[0]))
 
-    return population, logbook, linkage_log
+    return populations, logbook, linkage_log
 
 
 def gom(
