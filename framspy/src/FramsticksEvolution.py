@@ -22,17 +22,23 @@ def genotype_within_constraint(genotype, dict_criteria_values, criterion_name, c
 	return True
 
 
+solution_cache={}
+
+
 def frams_evaluate(frams_lib, individual):
 	FITNESS_CRITERIA_INFEASIBLE_SOLUTION = [FITNESS_VALUE_INFEASIBLE_SOLUTION] * len(OPTIMIZATION_CRITERIA)  # this special fitness value indicates that the solution should not be propagated via selection ("that genotype is invalid"). The floating point value is only used for compatibility with DEAP. If you implement your own optimization algorithm, instead of a negative value in this constant, use a special value like None to properly distinguish between feasible and infeasible solutions.
 	genotype = individual[0]  # individual[0] because we can't (?) have a simple str as a DEAP genotype/individual, only list of str.
 	data = frams_lib.evaluate([genotype])
 	# print("Evaluated '%s'" % genotype, 'evaluation is:', data)
 	valid = True
+	if genotype in solution_cache:
+		return solution_cache[genotype]
 	try:
 		first_genotype_data = data[0]
 		evaluation_data = first_genotype_data["evaluations"]
 		default_evaluation_data = evaluation_data[""]
 		fitness = [default_evaluation_data[crit] for crit in OPTIMIZATION_CRITERIA]
+		solution_cache[genotype] = fitness
 	except (KeyError, TypeError) as e:  # the evaluation may have failed for an invalid genotype (such as X[@][@] with "Don't simulate genotypes with warnings" option), or because the creature failed to stabilize, or for some other reason
 		valid = False
 		print('Problem "%s" so could not evaluate genotype "%s", hence assigned it a special ("infeasible solution") fitness value: %s' % (str(e), genotype, FITNESS_CRITERIA_INFEASIBLE_SOLUTION))
