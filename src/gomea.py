@@ -22,8 +22,6 @@ if TYPE_CHECKING:  # circular import
 #     return r
 
 
-
-
 def load_checkpoint(checkpoint):
     with open(checkpoint, "rb") as cp_file:
         cp = pickle.load(cp_file)
@@ -33,6 +31,7 @@ def load_checkpoint(checkpoint):
         logbook = cp["logbook"]
         random.setstate(cp["rndstate"])
     return population, start_gen, halloffame, logbook
+
 
 def eaGOMEA(
     populations: list[list],
@@ -75,7 +74,7 @@ def eaGOMEA(
     # from rich import print as rprint
     # rprint("First Multistats record: ", record)
     # if start_gen not in logbook.select("gen"):  # TODO: missing checkpointing
-        # logbook.record(gen=start_gen, nevals=len(invalid_ind), **flatten_dict(record))
+    #     logbook.record(gen=start_gen, nevals=len(invalid_ind), **flatten_dict(record))
     logbook.record(gen=0, nevals=len(invalid_ind), **record)
     linkage_log = []
     linkage_log.append([])  # empty for index 0 - match Logbook
@@ -94,7 +93,7 @@ def eaGOMEA(
     # while nevals < 100000:
     while not toolbox.should_stop(populations, gen):
         for pi, pop in enumerate(populations):
-            #print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
+            # print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
             # algorithm operators
             # linkage_model = LinkageTreeFramsF1(pop, original_control_word=None)
             linkage_model: LinkageTreeFramsF1 = toolbox.build_linkage_model(pop)
@@ -102,7 +101,7 @@ def eaGOMEA(
                 [linkage_model for _ in range(len(pop))],
                 [pop for _ in range(len(pop))],
             )
-            #print("mixing...")
+            # print("mixing...")
             new_pop = list(
                 toolbox.map(toolbox.genepool_optimal_mixing, pop, lms, lpops)
             )
@@ -125,7 +124,7 @@ def eaGOMEA(
             pop_str = [str(ind) for ind in new_pop]
             entropy = calc_entropy(pop_str)
             uniqueness = calc_uniqueness(pop_str)
-            #print(f"Entropy: {entropy:.4f}, Uniqueness: {uniqueness:.4f}")
+            # print(f"Entropy: {entropy:.4f}, Uniqueness: {uniqueness:.4f}")
 
             if uniqueness < uniq_threshold:
                 print("Uniqueness is low - migrating some individuals from other pops")
@@ -166,7 +165,7 @@ def eaGOMEA(
         record = stats.compile(mega_pop) if stats else {}
         record |= linkage_model.get_stats()
         logbook.record(gen=gen, nevals=nevals, **record)
-        
+
         # from rich import print as rprint
         # rprint("Multistats record: ", record)
         # logbook.record(gen=gen, nevals=nevals, **flatten_dict(record))
@@ -178,7 +177,7 @@ def eaGOMEA(
 
         if verbose:
             print(logbook.stream)
-        
+
         # if checkpoint_freq is not None ...
 
         gen += 1
@@ -190,7 +189,7 @@ def gom(
     individual: list,
     linkage_model: LinkageModel,
     population: list[list[str]],
-    toolbox: base.Toolbox,
+    toolbox: "OurToolbox",  # base.Toolbox,
     forcedImprov=True,
 ):
     """
@@ -236,7 +235,7 @@ def gom(
             # improving_ind.fitness = toolbox.clone(cloned_ind.fitness)
 
     if not improvement and forcedImprov:
-        best = toolbox.get_best(population)#tools.selBest(population, 1)[0]
+        best = toolbox.get_best(population)  # tools.selBest(population, 1)[0]
         if improving_ind != best:
             improving_ind = toolbox.forced_improvement(
                 improving_ind, linkage_model, best
