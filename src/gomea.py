@@ -58,7 +58,7 @@ def eaGOMEA(
     - should_stop - main loop stopping condition
     """
     # stats for observation
-    if not logbook:
+    if logbook is None:
         logbook = tools.Logbook()
     logbook.header = ["gen"] + (stats.fields if stats else [])
 
@@ -91,7 +91,7 @@ def eaGOMEA(
     nevals = 0
     # gen = start_gen + 1
     # while nevals < 100000:
-    while not toolbox.should_stop(populations, gen):
+    while not toolbox.should_stop(mega_pop, gen):  # Q: separate early stoppers?
         for pi, pop in enumerate(populations):
             # print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
             # algorithm operators
