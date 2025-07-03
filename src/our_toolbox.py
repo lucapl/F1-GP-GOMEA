@@ -13,7 +13,7 @@ from src.gomea import forced_improvement, gom, override_nodes
 from src.gpf1 import create_f1_pset, parse
 from src.linkage import LinkageTreeFramsF1
 from src.utils.elitism import SaveBest
-from src.utils.fpcontrol import print_fenv_state, restore_fenv
+from src.utils.fpcontrol import print_fenv_state, restore_fenv, fpenv_context_restore
 from src.utils.stopping import EarlyStopper, earlyStoppingOrMaxIter
 
 # creator.create("FitnessMax", base.Fitness, weights=[1])
@@ -81,14 +81,16 @@ class OurToolbox(BasicToolbox):
         neurons: tuple[int, int],
         iters: int,
         geno_format="1",
-    ):
-        return self.flib.getRandomGenotype(
-            self.flib.getSimplest(geno_format),
-            *parts,
-            *neurons,
-            iters,
-            return_even_if_failed=True,
-        )
+    ):  
+        with fpenv_context_restore(verbose=False):
+            geno = self.flib.getRandomGenotype(
+                self.flib.getSimplest(geno_format),
+                *parts,
+                *neurons,
+                iters,
+                return_even_if_failed=True,
+            )
+        return geno
 
     def create_subtree(self, low=0, high=100, type_=None):
         # the same thing as random_ind???
@@ -136,7 +138,8 @@ class OurToolbox(BasicToolbox):
         if np.random.random() >= self.args.pmut:
             return individual
         mutated = [str(gp.compile(individual, self.pset))]
-        mutated = self.framsLib.mutate(mutated)
+        with fpenv_context_restore(verbose=False):
+            mutated = self.framsLib.mutate(mutated)
         mutated = parse(mutated[0].replace(" ", ""), self.pset)
 
         ind = creator.Individual(mutated)
@@ -169,7 +172,8 @@ class OurToolbox(BasicToolbox):
 
         geno = [geno]
         try:
-            valid = self.flib.isValidCreature(geno)[0]
+            with fpenv_context_restore(verbose=False):
+                valid = self.flib.isValidCreature(geno)[0]
         except Exception:
             print(geno)
             raise Exception
@@ -178,7 +182,8 @@ class OurToolbox(BasicToolbox):
         # before running a creature through a simulation we ensure the genotype is valid
         if not self.mock_test:
             # value = self.flib.evaluate(geno)[0]["evaluations"][""][criteria]
-            value = self.flib.evaluate(geno)[0]["evaluations"][""][self.eval_criteria]
+            with fpenv_context_restore(verbose=False):
+                value = self.flib.evaluate(geno)[0]["evaluations"][""][self.eval_criteria]
         else:
             value = random.expovariate()
         solution_cache[geno[0]] = value
