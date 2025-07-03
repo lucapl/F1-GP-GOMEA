@@ -91,7 +91,7 @@ def eaGOMEA(
     nevals = 0
     # gen = start_gen + 1
     # while nevals < 100000:
-    while not toolbox.should_stop(mega_pop, gen):  # Q: separate early stoppers?
+    while not (did_early_stop := toolbox.should_stop(mega_pop, gen)):  # Q: separate early stoppers?
         for pi, pop in enumerate(populations):
             # print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
             # algorithm operators
@@ -159,21 +159,16 @@ def eaGOMEA(
                     break
 
         mega_pop = sum(populations, [])
+        nevals = toolbox.get_evaluations()
 
         if halloffame is not None:
             halloffame.update(mega_pop)
         record = stats.compile(mega_pop) if stats else {}
-        record |= linkage_model.get_stats()
         logbook.record(gen=gen, nevals=nevals, **record)
 
-        # from rich import print as rprint
-        # rprint("Multistats record: ", record)
-        # logbook.record(gen=gen, nevals=nevals, **flatten_dict(record))
-        # if False:
-        # record |= linkage_model.get_stats()
-        current_linkage = linkage_model.get_stats()
-        # rprint("Linkage_tree: ", current_linkage['linkage_tree'])
-        linkage_log.append(current_linkage["linkage_tree"])
+        # current_linkage = linkage_model.get_stats()
+        # # rprint("Linkage_tree: ", current_linkage['linkage_tree'])
+        # linkage_log.append(current_linkage["linkage_tree"])  # TODO: subpops
 
         if verbose:
             print(logbook.stream)
@@ -182,6 +177,8 @@ def eaGOMEA(
 
         gen += 1
 
+    if verbose:
+        print(f"   Finish reason: {did_early_stop=} {gen=} {nevals=}")
     return populations, logbook, linkage_log
 
 
