@@ -18,7 +18,7 @@ popsizes=100
 echo "Popsizes are: ${popsizes[@]}"
 
 # Output folder
-out_folder="./out_adapt_mut_nofi/"
+out_folder="./out/"
 
 # Create output directory if it doesn't exist
 mkdir -p "$out_folder"
@@ -43,6 +43,7 @@ run_job() {
 	--count_nevals \
 	--fmut 2 \
 	--pmut 0.9 \
+	--subpops 1 \
 	--sim_location "$cwd/framspy" \
 	--framslib "$cwd/Framsticks52" \
 	--sims "eval-allcriteria.sim" "eval-once.sim" "recording-body-coords.sim" \

@@ -85,14 +85,14 @@ def eaGOMEA(
     # if verbose:
     #     print(logbook.stream)  # maybe won't shift??
 
-    mutation_check = EarlyStopper(fmut, toolbox)  # TODO: multiple per sub.pop.?
+    mutation_checkers = [EarlyStopper(fmut, toolbox) for _ in populations]
 
     gen = 1
     nevals = 0
     # gen = start_gen + 1
     # while nevals < 100000:
     while not (did_early_stop := toolbox.should_stop(mega_pop, gen)):  # Q: separate early stoppers?
-        for pi, pop in enumerate(populations):
+        for pi, (pop, mut_check) in enumerate(zip(populations, mutation_checkers)):
             # print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
             # algorithm operators
             # linkage_model = LinkageTreeFramsF1(pop, original_control_word=None)
@@ -106,7 +106,7 @@ def eaGOMEA(
                 toolbox.map(toolbox.genepool_optimal_mixing, pop, lms, lpops)
             )
             # if gen % fmut == 0:
-            if mutation_check.shouldStop(new_pop):
+            if mut_check.shouldStop(new_pop):
                 print("Mutation time!")
                 new_pop = list(toolbox.map(toolbox.mutate, new_pop))
                 invalid_ind = [ind for ind in new_pop if not ind.fitness.valid]
@@ -136,7 +136,7 @@ def eaGOMEA(
                     pop_index = random.randint(0, len(populations) - 1)
                     ind = random.choice(populations[pop_index])
                     if ind not in new_population:
-                        new_population.append(ind)
+                        new_population.append(toolbox.clone(ind))
 
             # fits = [ind.fitness.values[0] for ind in new_pop]
             # mean_fits = np.mean(fits)

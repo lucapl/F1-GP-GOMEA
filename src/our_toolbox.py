@@ -139,10 +139,13 @@ class OurToolbox(BasicToolbox):
     def mutate(self, individual):
         if np.random.random() >= self.args.pmut:
             return individual
-        mutated = [str(gp.compile(individual, self.pset))]
-        with fpenv_context_restore(verbose=False):
-            mutated = self.framsLib.mutate(mutated)
-        mutated = parse(mutated[0].replace(" ", ""), self.pset)
+        try:
+            mutated = [str(gp.compile(individual, self.pset))]
+            with fpenv_context_restore(verbose=False):
+                mutated = self.framsLib.mutate(mutated)
+            mutated = parse(mutated[0].replace(" ", ""), self.pset)
+        except Exception:
+            return individual
 
         ind = creator.Individual(mutated)
         # ind.fitness = toolbox.clone(individual.fitness)

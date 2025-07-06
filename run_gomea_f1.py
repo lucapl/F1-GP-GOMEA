@@ -155,7 +155,7 @@ def main():
     # population initialization
     #####################
     hof = None
-    logbook = None
+    logbook = tools.Logbook()
     # start_gen = 0
 
     # pop = toolbox.population()
