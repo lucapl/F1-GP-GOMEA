@@ -14,11 +14,11 @@ experiments=$(seq 1 6)
 echo "Experiments: $experiments"
 echo "IMPORTANT: adjust this ^ to not overwrite old results"
 
-popsizes=100
+popsizes=25
 echo "Popsizes are: ${popsizes[@]}"
 
 # Output folder
-out_folder="./out/"
+out_folder="./out_subpops/"
 
 # Create output directory if it doesn't exist
 mkdir -p "$out_folder"
@@ -43,7 +43,7 @@ run_job() {
 	--count_nevals \
 	--fmut 2 \
 	--pmut 0.9 \
-	--subpops 1 \
+	--subpops 10 \
 	--sim_location "$cwd/framspy" \
 	--framslib "$cwd/Framsticks52" \
 	--sims "eval-allcriteria.sim" "eval-once.sim" "recording-body-coords.sim" \
