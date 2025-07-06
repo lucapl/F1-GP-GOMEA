@@ -32,9 +32,9 @@ ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
 
 def prepare_gomea_parser(parser: argparse.ArgumentParser):
     # fmt: off
-    parser.add_argument('-n', '--ngen', default=15, type=int, help="Number of generations to rund")
-    parser.add_argument('-p', '--popsize', default=20, type=int, help="Size of population")
-    parser.add_argument('-e', '--early_stop', default=10, type=int, help="Number of non-improving iterations till stopping")
+    parser.add_argument('-n', '--ngen', default=9999, type=int, help="Number of generations to rund")
+    parser.add_argument('-p', '--popsize', default=30, type=int, help="Size of population")
+    parser.add_argument('-e', '--early_stop', default=99999, type=int, help="Number of non-improving iterations till stopping")
     parser.add_argument('-g', '--initial_geno_mutations', default=100, type=int)
     parser.add_argument('--parts', nargs=2, type=int, default=[20, 30], help='Initial genotypes parts range')
     parser.add_argument('--neurons', nargs=2, type=int, default=[6, 8], help='Initial genotypes neurons range')
@@ -59,14 +59,14 @@ def prepare_gomea_parser(parser: argparse.ArgumentParser):
         #  default="./Framsticks52"
     )
     parser.add_argument("--pmut", help="Probability of mutation occuring", default=0.8, type=float)
-    parser.add_argument('--fmut', help="Frequency of mutation occuring", default=10, type=int)
+    parser.add_argument('--fmut', help="Frequency of mutation occuring", default=2, type=int)
     parser.add_argument('--count_nevals', help="Counts evaluations of genotype", action="store_true")
     parser.add_argument('-t', '--test_function', default=3, choices=[3, 4, 5], help="Which test function to evaluate")
     parser.add_argument('--criteria', default='COGpath', help="Name of the evaluation function criteria")
 
     parser.add_argument(
         "--subpops",
-        default=1,
+        default=10,
         # default=20,
         type=int,
         help="Number of subpopulations to use in GOMEA. Each sub-population has size `popsize`.",
