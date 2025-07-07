@@ -96,9 +96,11 @@ def main():
     )
 
     with fpenv_context_restore("loading Framsticks DLL"):
+        FramsticksLibCompetition.TEST_FUNCTION = (
+            -123 if args.MOCK_EVALS else args.test_function
+        )
+        FramsticksLibCompetition.SIMPLE_FITNESS_FORMAT = False
         framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
-        framsLib.TEST_FUNCTION = args.test_function
-        framsLib.SIMPLE_FITNESS_FORMAT = False
 
     # sometimes pandas crashes at print(df)...
     # print_fenv_state("Verify")
