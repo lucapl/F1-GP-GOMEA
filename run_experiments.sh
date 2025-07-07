@@ -43,7 +43,8 @@ run_job() {
     # echo "Starting job for experiment: $experiment"
     
     # Run the command and redirect output to the log file
-    (cd "$full_output" && python3.12 "$cwd/run_gomea_f1.py" \
+	# python3.12  - not in `ls .venv/Scripts`
+    (cd "$full_output" && python "$cwd/run_gomea_f1.py" \
 	-n 200 \
 	-e 200 \
 	-g 100 \
@@ -56,7 +57,8 @@ run_job() {
 	--sim_location "$cwd/framspy" \
 	--framslib "$cwd/Framsticks52" \
 	--sims "eval-allcriteria.sim" "eval-once.sim" "recording-body-coords.sim" \
-	> "$logfile" 2>&1)
+	> "$logfile" 2>&1  || echo "Error: exit code $? for $full_output"
+	)
 }
 
 # Export function and variables for parallel execution
