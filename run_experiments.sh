@@ -1,6 +1,14 @@
 #!/bin/bash
 
 #source ./set_env.sh
+if [ -z "$VIRTUAL_ENV" ]; then
+	if [ -e .venv/Scripts/activate ]; then
+		source .venv/Scripts/activate
+		echo "Sourcing .venv";
+	fi
+else
+	echo "VIRTUAL_ENV=$VIRTUAL_ENV"
+fi
 
 echo "READ and ADJUST this script file"
 
@@ -81,3 +89,5 @@ disown
 
 echo "Jobs are running in the background. Queue process ID: $queue_pid"
 echo "Use 'ps' to monitor the jobs or check logs in $out_folder."
+# let the text finish printing
+sleep 0.5
