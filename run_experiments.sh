@@ -44,7 +44,7 @@ run_job() {
     
     # Run the command and redirect output to the log file
 	# python3.12  - not in `ls .venv/Scripts`
-    (cd "$full_output" && python "$cwd/run_gomea_f1.py" \
+    (cd "$full_output" && python -u "$cwd/run_gomea_f1.py" \
 	-n 200 \
 	-e 200 \
 	-g 100 \
