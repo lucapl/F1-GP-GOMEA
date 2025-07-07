@@ -10,8 +10,9 @@ echo "Max processes: $max_processes"
 echo "Adjust this num ^ to the number of CPU cores"
 
 # Define experiments
-experiments=$(seq 1 6)
-echo "Experiments: $experiments"
+# experiments=$(seq 1 6)
+experiments=$(seq 1 6 | awk '{ print "exp-" $1 }')
+echo -e "\nExperiments: \n$experiments"
 echo "IMPORTANT: adjust this ^ to not overwrite old results"
 
 popsizes=25
@@ -31,7 +32,7 @@ run_job() {
 	mkdir -p "$full_output"
     local logfile="out.log"
 	local cwd=$(pwd)
-    #echo "Starting job for linkage: $linkage, experiment: $experiment"
+    # echo "Starting job for experiment: $experiment"
     
     # Run the command and redirect output to the log file
     (cd "$full_output" && python3.12 "$cwd/run_gomea_f1.py" \
