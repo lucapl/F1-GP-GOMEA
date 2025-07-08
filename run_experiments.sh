@@ -51,8 +51,8 @@ run_job() {
 	-p "$popsize" \
 	-v \
 	--count_nevals \
-	--fmut 2 \
-	--pmut 0.9 \
+	--fmut 4 \
+	--pmut 1.0 \
 	--subpops 10 \
 	--sim_location "$cwd/framspy" \
 	--framslib "$cwd/Framsticks52" \

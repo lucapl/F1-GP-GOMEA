@@ -91,28 +91,52 @@ def eaGOMEA(
     nevals = 0
     # gen = start_gen + 1
     # while nevals < 100000:
-    while not (did_early_stop := toolbox.should_stop(mega_pop, gen)):  # Q: separate early stoppers?
+    while not (did_early_stop := toolbox.should_stop(mega_pop, gen)):
         for pi, (pop, mut_check) in enumerate(zip(populations, mutation_checkers)):
             # print(f"gen: {gen} - pop: {pi + 1}/{len(populations)}")
-            # algorithm operators
-            # linkage_model = LinkageTreeFramsF1(pop, original_control_word=None)
-            linkage_model: LinkageTreeFramsF1 = toolbox.build_linkage_model(pop)
-            lms, lpops = (
-                [linkage_model for _ in range(len(pop))],
-                [pop for _ in range(len(pop))],
-            )
-            # print("mixing...")
-            new_pop = list(
-                toolbox.map(toolbox.genepool_optimal_mixing, pop, lms, lpops)
-            )
-            # if gen % fmut == 0:
-            if mut_check.shouldStop(new_pop):
-                print("Mutation time!")
-                new_pop = list(toolbox.map(toolbox.mutate, new_pop))
-                invalid_ind = [ind for ind in new_pop if not ind.fitness.valid]
+
+            if mut_check.shouldStop(pop):
+                print(f"Mutation time! {gen=} pop={pi} /{len(populations)}")
+                # (moved here so stats are saved separately)
+                offspring = list(toolbox.map(toolbox.mutate, pop))
+                invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
                 fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
                 for ind, fit in zip(invalid_ind, fitnesses):
                     ind.fitness.values = fit
+
+                better = 0
+                for i in range(len(offspring)):
+                    if offspring[i].fitness.values > pop[i].fitness.values:
+                        better += 1
+                print(f"{better=}")
+
+                # selection
+                feasible_offspring = [
+                    ind
+                    for ind in offspring
+                    if ind.fitness.values != toolbox.invalid_fitness
+                ]
+                new_pop = tools.selTournament(
+                    pop + feasible_offspring, len(pop), tournsize=3
+                )
+                assert len(new_pop) == len(pop)
+                # Later: populations[pi] = new_pop
+            else:
+                # algorithm operators
+                # linkage_model = LinkageTreeFramsF1(pop, original_control_word=None)
+                linkage_model: LinkageTreeFramsF1 = toolbox.build_linkage_model(pop)
+                lms, lpops = (
+                    [linkage_model for _ in range(len(pop))],
+                    [pop for _ in range(len(pop))],
+                )
+                # print("mixing...")
+                new_pop = list(
+                    toolbox.map(toolbox.genepool_optimal_mixing, pop, lms, lpops)
+                )
+            # if gen % fmut == 0:
+            # if mut_check.shouldStop(new_pop):
+            #     print(f"Mutation time! pop={pi} /{len(populations)}")
+            #     new_pop = list(toolbox.map(toolbox.mutate, new_pop))
 
             populations[pi] = new_pop
             nevals = toolbox.get_evaluations()
@@ -122,7 +146,7 @@ def eaGOMEA(
                 break
 
             pop_str = [str(ind) for ind in new_pop]
-            entropy = calc_entropy(pop_str)
+            # entropy = calc_entropy(pop_str)
             uniqueness = calc_uniqueness(pop_str)
             # print(f"Entropy: {entropy:.4f}, Uniqueness: {uniqueness:.4f}")
 
