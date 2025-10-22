@@ -1,6 +1,14 @@
 #!/bin/bash
 
 #source ./set_env.sh
+if [ -z "$VIRTUAL_ENV" ]; then
+	if [ -e .venv/Scripts/activate ]; then
+		source .venv/Scripts/activate
+		echo "Sourcing .venv";
+	fi
+else
+	echo "VIRTUAL_ENV=$VIRTUAL_ENV"
+fi
 
 echo "READ and ADJUST this script file"
 
@@ -10,15 +18,16 @@ echo "Max processes: $max_processes"
 echo "Adjust this num ^ to the number of CPU cores"
 
 # Define experiments
-experiments=$(seq 1 6)
-echo "Experiments: $experiments"
+# experiments=$(seq 1 6)
+experiments=$(seq 1 6 | awk '{ print "exp-" $1 }')
+echo -e "\nExperiments: \n$experiments"
 echo "IMPORTANT: adjust this ^ to not overwrite old results"
 
-popsizes=100
+popsizes=25
 echo "Popsizes are: ${popsizes[@]}"
 
 # Output folder
-out_folder="./out_adapt_mut_nofi/"
+out_folder="./out_subpops/"
 
 # Create output directory if it doesn't exist
 mkdir -p "$out_folder"
@@ -31,10 +40,11 @@ run_job() {
 	mkdir -p "$full_output"
     local logfile="out.log"
 	local cwd=$(pwd)
-    #echo "Starting job for linkage: $linkage, experiment: $experiment"
+    # echo "Starting job for experiment: $experiment"
     
     # Run the command and redirect output to the log file
-    (cd "$full_output" && python3.12 "$cwd/run_gomea_f1.py" \
+	# python3.12  - not in `ls .venv/Scripts`
+    (cd "$full_output" && python -u "$cwd/run_gomea_f1.py" \
 	-n 200 \
 	-e 200 \
 	-g 100 \
@@ -43,10 +53,12 @@ run_job() {
 	--count_nevals \
 	--fmut 2 \
 	--pmut 0.9 \
+	--subpops 10 \
 	--sim_location "$cwd/framspy" \
 	--framslib "$cwd/Framsticks52" \
 	--sims "eval-allcriteria.sim" "eval-once.sim" "recording-body-coords.sim" \
-	> "$logfile" 2>&1)
+	> "$logfile" 2>&1  || echo "Error: exit code $? for $full_output"
+	)
 }
 
 # Export function and variables for parallel execution
@@ -79,3 +91,5 @@ disown
 
 echo "Jobs are running in the background. Queue process ID: $queue_pid"
 echo "Use 'ps' to monitor the jobs or check logs in $out_folder."
+# let the text finish printing
+sleep 0.5

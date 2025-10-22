@@ -1,6 +1,7 @@
 import argparse
 import os
 import random
+import traceback
 from functools import partial
 from pathlib import Path
 
@@ -29,10 +30,11 @@ ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", "./framspy")
 # ENV_FRAMSPY_PATH = os.getenv("FRAMSPY_PATH", str(framspy.__path__[0]))
 
 
-def prepare_gomea_parser(parser):
-    parser.add_argument('-n', '--ngen', default=15, type=int, help="Number of generations to rund")
-    parser.add_argument('-p', '--popsize', default=20, type=int, help="Size of population")
-    parser.add_argument('-e', '--early_stop', default=10, type=int, help="Number of non-improving iterations till stopping")
+def prepare_gomea_parser(parser: argparse.ArgumentParser):
+    # fmt: off
+    parser.add_argument('-n', '--ngen', default=9999, type=int, help="Number of generations to rund")
+    parser.add_argument('-p', '--popsize', default=30, type=int, help="Size of population")
+    parser.add_argument('-e', '--early_stop', default=99999, type=int, help="Number of non-improving iterations till stopping")
     parser.add_argument('-g', '--initial_geno_mutations', default=100, type=int)
     parser.add_argument('--parts', nargs=2, type=int, default=[20, 30], help='Initial genotypes parts range')
     parser.add_argument('--neurons', nargs=2, type=int, default=[6, 8], help='Initial genotypes neurons range')
@@ -57,21 +59,30 @@ def prepare_gomea_parser(parser):
         #  default="./Framsticks52"
     )
     parser.add_argument("--pmut", help="Probability of mutation occuring", default=0.8, type=float)
-    parser.add_argument('--fmut', help="Frequency of mutation occuring", default=10, type=int)
+    parser.add_argument('--fmut', help="Frequency of mutation occuring", default=2, type=int)
     parser.add_argument('--count_nevals', help="Counts evaluations of genotype", action="store_true")
     parser.add_argument('-t', '--test_function', default=3, choices=[3, 4, 5], help="Which test function to evaluate")
     parser.add_argument('--criteria', default='COGpath', help="Name of the evaluation function criteria")
 
-    return parser
+    parser.add_argument(
+        "--subpops",
+        default=10,
+        # default=20,
+        type=int,
+        help="Number of subpopulations to use in GOMEA. Each sub-population has size `popsize`.",
+    )
 
+    # fmt: on
+    return parser
 
 
 def main():
     # prepare arguments
     parser = argparse.ArgumentParser(
-                    prog='GOMEA experiment',
-                    description='runs a gomea experiment on f1 framsticks population',
-                    epilog='glhf')
+        prog="GOMEA experiment",
+        description="runs a gomea experiment on f1 framsticks population",
+        epilog="glhf",
+    )
     parser = prepare_gomea_parser(parser)
     args = parser.parse_args()
 
@@ -80,15 +91,16 @@ def main():
     ##########################
     # sim files
     frasmpy_path = Path(args.sim_location)
-    sim_formatted = ';'.join([
-        (frasmpy_path/sim_file).absolute().as_posix()
-        for sim_file in args.sims
-    ])
+    sim_formatted = ";".join(
+        [(frasmpy_path / sim_file).absolute().as_posix() for sim_file in args.sims]
+    )
 
     with fpenv_context_restore("loading Framsticks DLL"):
+        FramsticksLibCompetition.TEST_FUNCTION = (
+            -123 if args.MOCK_EVALS else args.test_function
+        )
+        FramsticksLibCompetition.SIMPLE_FITNESS_FORMAT = False
         framsLib = FramsticksLibCompetition(args.framslib, None, sim_formatted)
-        framsLib.TEST_FUNCTION = args.test_function
-        framsLib.SIMPLE_FITNESS_FORMAT = False
 
     # sometimes pandas crashes at print(df)...
     # print_fenv_state("Verify")
@@ -96,7 +108,7 @@ def main():
     # With NumPy, you can configure how it responds to FP events:
     #
     # Raise exceptions on specified FP errors
-    np.seterr(all='raise')  # or specify individually, e.g. invalid='raise'
+    np.seterr(all="raise")  # or specify individually, e.g. invalid='raise'
     # np.seterr(all='print')
 
     # After this, operations leading to nan, inf, divide-by-zero etc. will raise `FloatingPointError`
@@ -104,7 +116,6 @@ def main():
     # with np.errstate(divide='raise', invalid='raise'):
     #     x = np.log(-1)  # triggers FloatingPointError: invalid value encountered in log
     #     print("\n\n\n", flush=True)
-
 
     #####################
     # deap definitions
@@ -114,7 +125,12 @@ def main():
     creator.create("FitnessMax", base.Fitness, weights=[1])
     creator.create("Individual", gp.PrimitiveTree, fitness=creator.FitnessMax)
 
-    toolbox = OurToolbox(args=args, framsLib=framsLib, pset=pset, if_forced_improv_save_best=args.forced_improv_global)
+    toolbox = OurToolbox(
+        args=args,
+        framsLib=framsLib,
+        pset=pset,
+        if_forced_improv_save_best=args.forced_improv_global,
+    )
 
     ####################
     # stats logging
@@ -141,37 +157,56 @@ def main():
     # population initialization
     #####################
     hof = None
-    logbook = None
-    start_gen = 0
+    logbook = tools.Logbook()
+    # start_gen = 0
 
-    pop = toolbox.population()
-    #print(pop[0])
+    # pop = toolbox.population()
+    populations = [toolbox.population() for _ in range(args.subpops)]
+    # print(pop[0])
+    if args.subpops == 1:
+        print("No sub-populations.")
+    else:
+        print(
+            f"Using {args.subpops} sub-populations, "
+            f"{sum(len(ls) for ls in populations)} individuals overall."
+        )
 
     ########################
     # MAIN ALGORITHM
     ########################
+    ea_success = True
     try:
         new_pop, logbook, _linkage_log = eaGOMEA(
-            pop,
+            populations,
             toolbox,
-            start_gen=start_gen,
             logbook=logbook,
             stats=mstats,
             halloffame=hof,
             fmut=args.fmut,
+            # start_gen=start_gen,
             # checkpoint_freq=args.checkpoint_frequency,
             # checkpoint_name=checkpoints_out,
             verbose=args.verbose,
+            popsize=args.popsize,
+            # uniq_threshold = 0.2,
+            # sim_threshold = 0.8,
         )
     except Exception as err:
-        print(f"Unexpected {err=}, {type(err)=}")
+        print(f"\nUnexpected {type(err)}: {err}")
+        # traceback.print_tb()
+        traceback.print_exc()
+        print()
+        ea_success = err
 
     if True:
-        _cached_eval_ratio = toolbox.solution_cache_hits / (toolbox.solution_cache_hits + toolbox.solution_cache_misses)
-        print(f"Eval. cache stats: {_cached_eval_ratio:.1%}  "
+        _cached_eval_ratio = toolbox.solution_cache_hits / (
+            toolbox.solution_cache_hits + toolbox.solution_cache_misses
+        )
+        print(
+            f"Eval. cache stats: {_cached_eval_ratio:.1%}  "
             f"{toolbox.solution_cache_hits:5} reused"
             f" and {toolbox.solution_cache_misses} simulated."
-            )
+        )
 
     # from rich import print as rprint
     # rprint("\n\nLogbook: ", logbook)  # [{'gen': 0, 'nevals': 123}, ...]
@@ -180,11 +215,18 @@ def main():
 
     # log_df = pd.json_normalize({**dict(logbook), **dict(logbook.chapters)})
     log_df = deap_log_with_multi_stats_to_df(logbook)
-    # print("\n\nas data frame: ", log_df.shape)
-    # print(log_df.dtypes)
-    print("\n\n")
-    print(log_df.describe())
-    print()
+    if args.verbose:
+        try:
+            from rich import print as rprint
+        except ImportError:
+            rprint = print
+
+        print("\n\nLogbook as data frame: ", log_df.shape)
+        rprint(log_df)
+        # print(log_df.dtypes)
+        print("\n\n")
+        rprint(log_df.describe())
+        print()
 
     # parsed_args.out_prefix + "_stats.csv"
     out_log = "test" + "_stats.csv"
@@ -195,6 +237,9 @@ def main():
     # saving outputs
     #######################
     framsLib.end()
+
+    if ea_success is not True:
+        raise SystemExit(1)  # error code
 
 
 def deap_log_with_multi_stats_to_df(logbook: tools.Logbook) -> pd.DataFrame:
@@ -214,16 +259,17 @@ def deap_log_with_multi_stats_to_df(logbook: tools.Logbook) -> pd.DataFrame:
         chapter_df = pd.DataFrame.from_records(ls_subrecords)
         rename_dict = {
             col: f"{chapter_name}_{col}"
-            for col in chapter_df.columns if col not in ("gen", "nevals")
+            for col in chapter_df.columns
+            if col not in ("gen", "nevals")
             #  if col != "gen"
         }
         chapter_df = chapter_df.drop(columns=["nevals"])
         chapter_df = chapter_df.rename(columns=rename_dict)
         # rprint(f"\n{chapter_name} df:\n", chapter_df)
         # rprint("...records were: ", ls_subrecords)
-        sub_dfs.append(chapter_df.set_index('gen'))
+        sub_dfs.append(chapter_df.set_index("gen"))
 
-    log_df = pd.DataFrame.from_records(records).set_index('gen')
+    log_df = pd.DataFrame.from_records(records).set_index("gen")
     log_df = log_df.join(sub_dfs, validate="one_to_one")
     # result_df = log_df.merge(df, on='gen', how='outer')
     # rprint("\n\n\njoined\n", log_df)
